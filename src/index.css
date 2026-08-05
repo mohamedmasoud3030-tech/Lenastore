@@ -1,14 +1,93 @@
 @import "tailwindcss";
 
+:root {
+  font-family: "Cairo", "Segoe UI", sans-serif;
+  color: #172033;
+  background: #f5f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: #f5f7fb;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(15, 76, 129, 0.07), transparent 26rem),
+    #f5f7fb;
+  color: #172033;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(15, 76, 129, 0.18);
+}
+
+.enterprise-field {
+  width: 100%;
+  min-height: 3.25rem;
+  border: 1px solid #d9e0ea;
+  border-radius: 0.9rem;
+  background: #fff;
+  padding: 0.75rem 0.9rem;
+  color: #172033;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.enterprise-field::placeholder {
+  color: #9aa6b8;
+}
+
+.enterprise-field:hover {
+  border-color: #bcc8d8;
+}
+
+.enterprise-field:focus {
+  border-color: #0f4c81;
+  box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.1);
+}
+
+.surface-card {
+  border: 1px solid rgba(217, 224, 234, 0.9);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 50px rgba(23, 32, 51, 0.07);
+}
+
 @media print {
   body {
     background-color: white !important;
   }
-  aside, nav, header {
+
+  aside,
+  nav,
+  header {
     display: none !important;
   }
+
   main {
     padding: 0 !important;
   }
 }
-
