@@ -1,4 +1,4 @@
-import { Building2, Boxes3 } from 'lucide-react';
+import { Boxes, Building2 } from 'lucide-react';
 import clsx from 'clsx';
 
 interface BrandMarkProps {
@@ -20,7 +20,7 @@ export default function BrandMark({ compact = false, inverse = false, className 
       >
         <Building2 size={22} strokeWidth={1.9} />
         <span className="absolute -bottom-1 -left-1 grid h-5 w-5 place-items-center rounded-md bg-amber-400 text-slate-950 ring-2 ring-white">
-          <Boxes3 size={11} strokeWidth={2.5} />
+          <Boxes size={11} strokeWidth={2.5} />
         </span>
       </div>
 
