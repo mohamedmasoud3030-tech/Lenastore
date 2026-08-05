@@ -1,29 +1,60 @@
-# مشروع إدارة البناء - Construction Management PWA
+# Lenastore — إدارة مواد مشروع إنشائي
 
-## النطاق (Scope)
-هذا التطبيق هو MVP لإدارة مشروع بناء واحد لمستخدم واحد. يوفر تتبعًا كاملاً للمواد، الموردين، الطلبات، المشتريات، الاستلام (جزئي/كامل)، والمدفوعات.
+تطبيق PWA عربي لإدارة مشروع إنشائي واحد: المواد، المخزون، طلبات الشراء، المشتريات، الاستلام الجزئي والكامل، الموردون، المدفوعات، المرفقات والتقارير.
 
-## حالة PWA والعمل دون اتصال (Offline)
-- التطبيق قابل للتثبيت كـ PWA على الهاتف والحاسوب.
-- الواجهة وهيكل التطبيق (Shell) يتم تخزينها مؤقتًا (Cached) للعمل المبدئي.
-- **ملاحظة:** البيانات الحساسة والإدخالات تعتمد على الاتصال بالإنترنت (`NetworkOnly` لقاعدة بيانات Supabase) لضمان اتساق البيانات وعدم حدوث تعارضات مالية.
-- عند انقطاع الاتصال، يظهر تنبيه للمستخدم ولن تعمل العمليات التي تتطلب الكتابة/القراءة من الخادم.
+## الحالة الحالية
 
-## ترتيب الإعداد (Setup Order)
-لإعداد المشروع على قاعدة بيانات Supabase الخاصة بك، قم بتشغيل الملفات التالية بالترتيب:
+- Supabase project: `Lena-headstore`
+- Project Ref: `bsrshhgjtnrvsckeqsmg`
+- Database schema: مطبق فعليًا
+- Demo data: مطبقة على المستخدم التجريبي الحالي
+- Storage bucket: `attachments` خاص (Private)
+- SQL release assertions: `13 passed / 0 failed`
+- واجهة PWA: البيانات تحتاج اتصالًا بالإنترنت، بينما يتم تخزين App Shell فقط مؤقتًا
 
-1. **`supabase/schema.sql`**: ينشئ الجداول، الـ Views، السياسات (RLS)، الدوال (RPCs)، وتهيئة الـ Storage.
-2. **`supabase/seed.sql`**: ملف البيانات التجريبية. **هام جداً:** قم بتشغيل هذا الأمر بشكل صريح مع تمرير معرّف المستخدم (User ID) الخاص بك:
-   ```sql
-   SELECT seed_demo_data('YOUR_USER_UUID_HERE');
-   ```
-3. **`supabase/tests/db.test.sql`**: يشغل اختبارات قاعدة البيانات للتحقق من سلامة القيود والعمليات الذرية (Atomic).
+## التشغيل المحلي
 
-## ملخص الإغلاق والحماية (Release Blockers Resolved)
+```bash
+npm install
+npm run dev
+```
 
-- **الاستلام الجزئي والكلي (Idempotency):** تم استخدام المفتاح `idempotency_key` مع قيد `UNIQUE(project_id, idempotency_key)` في جدول `goods_receipts` لمنع تكرار الإدخال. الدالة `receive_goods` تقوم بتجاهل الإدخال المكرر وإرجاع معرف الاستلام الأصلي.
-- **عزل المستخدمين (RLS):** كل جدول يمتلك 4 سياسات (SELECT, INSERT, UPDATE, DELETE) تتحقق من ملكية المشروع للمستخدم الحالي (`user_id = auth.uid()`).
-- **أمان المرفقات (Storage):** الـ Bucket `attachments` هو Private، لا يمكن الوصول له إلا بروابط مؤقتة (`createSignedUrl`). مسار الملف يجب أن يبدأ بـ `project_id` والسياسة تتحقق من ملكية المشروع.
-- **العمليات الذرية (RPCs):** عمليات الاستلام والدفع تتم داخل Transactions محكمة لمنع الاستلام الزائد أو الدفع الزائد عبر الدوال `receive_goods` و `register_payment`.
+التطبيق مربوط افتراضيًا بمشروع Supabase المخصص له. يمكن تجاوز الإعدادات عبر:
 
-تم تنفيذ 8 اختبارات Unit Tests للحسابات المحلية. وتم إنشاء سكربت SQL يختبر العمليات المعقدة على قاعدة البيانات مباشرة.
+```env
+VITE_SUPABASE_URL="https://bsrshhgjtnrvsckeqsmg.supabase.co"
+VITE_SUPABASE_ANON_KEY="YOUR_PUBLISHABLE_KEY"
+```
+
+لا تستخدم `service_role` داخل الواجهة أو المستودع.
+
+## أوامر الجودة
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+## ملفات قاعدة البيانات
+
+1. `supabase/schema.sql` — المخطط الكامل، RLS، Views، RPCs وStorage policies.
+2. `supabase/seed.sql` — دالة Demo آمنة لا تعمل إلا بمعرف مستخدم موجود.
+3. `supabase/tests/db.test.sql` — اختبارات قاعدة البيانات داخل Transaction مع Rollback.
+
+لتشغيل بيانات Demo على قاعدة جديدة:
+
+```sql
+select public.seed_demo_data('AUTH_USER_UUID'::uuid);
+```
+
+## ضمانات قاعدة البيانات
+
+- الرصيد يُحسب من `stock_movements` فقط.
+- الشراء لا يزيد المخزون.
+- `receive_goods` ينفذ الاستلام ذريًا ويمنع التكرار والاستلام الزائد.
+- `register_payment` يقفل أمر الشراء ويمنع الدفع الزائد المتزامن.
+- صرف كمية أكبر من الرصيد يُمنع داخل PostgreSQL، وليس في الواجهة فقط.
+- Views تعمل بـ `security_invoker`.
+- RLS يعزل كل مشروع عن المستخدمين الآخرين.
+- المرفقات خاصة وتُعرض بروابط مؤقتة Signed URLs.
