@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   ArrowLeft,
-  Boxes3,
+  Boxes,
   CheckCircle2,
   ClipboardCheck,
   Eye,
@@ -82,7 +82,7 @@ export default function Login() {
           <div className="mt-9 grid grid-cols-3 gap-3">
             {[
               { icon: ClipboardCheck, label: 'دورة شراء موثقة' },
-              { icon: Boxes3, label: 'رصيد لحظي للمواد' },
+              { icon: Boxes, label: 'رصيد لحظي للمواد' },
               { icon: ShieldCheck, label: 'صلاحيات وعزل بيانات' },
             ].map(({ icon: Icon, label }) => (
               <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm">
