@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from './AuthContext';
 
@@ -24,39 +24,51 @@ const ProjectContext = createContext<ProjectContextType>({
 
 export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(false);
 
-  const fetchProject = async () => {
-    if (!supabase || !user) {
+  const fetchProject = useCallback(async () => {
+    if (!userId) {
       setProject(null);
-      setLoading(false);
+      setLoadedUserId(null);
+      setFetching(false);
       return;
     }
+
+    setFetching(true);
 
     try {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .limit(1)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') { // not found is ok
-        console.error('Error fetching project:', error);
+        .maybeSingle();
+
+      if (error) {
+        throw error;
       }
-      
-      setProject(data || null);
-    } catch (err) {
-      console.error(err);
+
+      setProject(data ?? null);
+      setLoadedUserId(userId);
+    } catch (error) {
+      console.error('Error fetching project:', error);
+      setProject(null);
+      setLoadedUserId(userId);
     } finally {
-      setLoading(false);
+      setFetching(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
-    fetchProject();
-  }, [user]);
+    void fetchProject();
+  }, [fetchProject]);
+
+  // Treat a newly authenticated user as loading immediately, before the effect
+  // runs. This prevents a transient redirect to /setup-project.
+  const loading = Boolean(userId && (fetching || loadedUserId !== userId));
 
   return (
     <ProjectContext.Provider value={{ project, loading, refreshProject: fetchProject }}>

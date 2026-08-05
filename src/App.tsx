@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import { ProjectProvider, useProject } from './lib/ProjectContext';
 import { supabase } from './lib/supabase';
@@ -12,7 +12,6 @@ import Dashboard from './components/Dashboard';
 import Materials from './components/Materials';
 import Movements from './components/Movements';
 import Suppliers from './components/Suppliers';
-
 import Purchases from './components/Purchases';
 import CreatePurchase from './components/CreatePurchase';
 import PurchaseDetails from './components/PurchaseDetails';
@@ -21,14 +20,36 @@ import CreatePurchaseRequest from './components/CreatePurchaseRequest';
 import RequestDetails from './components/RequestDetails';
 import Reports from './components/Reports';
 
+function LoadingScreen() {
+  return <div className="p-8 text-center">جاري التحميل...</div>;
+}
+
+function LoginRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <LoadingScreen />;
+  if (user) return <Navigate to="/" replace />;
+
+  return <Login />;
+}
+
+function ProjectSetupRoute() {
+  const { user, loading: authLoading } = useAuth();
+  const { project, loading: projectLoading } = useProject();
+
+  if (authLoading || projectLoading) return <LoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (project) return <Navigate to="/" replace />;
+
+  return <ProjectSetup />;
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const { project, loading: projectLoading } = useProject();
 
-  if (authLoading) return <div className="p-8 text-center">جاري التحميل...</div>;
+  if (authLoading || projectLoading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
-
-  if (projectLoading) return <div className="p-8 text-center">جاري التحميل...</div>;
   if (!project) return <Navigate to="/setup-project" replace />;
 
   return <>{children}</>;
@@ -41,14 +62,17 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/setup-project" element={<ProjectSetup />} />
-      
-      <Route path="/" element={
-        <ProtectedRoute>
-          <Layout />
-        </ProtectedRoute>
-      }>
+      <Route path="/login" element={<LoginRoute />} />
+      <Route path="/setup-project" element={<ProjectSetupRoute />} />
+
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<Dashboard />} />
         <Route path="requests" element={<PurchaseRequests />} />
         <Route path="requests/new" element={<CreatePurchaseRequest />} />
@@ -61,6 +85,8 @@ function AppContent() {
         <Route path="suppliers" element={<Suppliers />} />
         <Route path="reports" element={<Reports />} />
       </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
@@ -76,4 +102,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-
