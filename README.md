@@ -1,11 +1,29 @@
-<div align="center">
+# مشروع إدارة البناء - Construction Management PWA
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+## النطاق (Scope)
+هذا التطبيق هو MVP لإدارة مشروع بناء واحد لمستخدم واحد. يوفر تتبعًا كاملاً للمواد، الموردين، الطلبات، المشتريات، الاستلام (جزئي/كامل)، والمدفوعات.
 
-  <h1>Built with AI Studio</h2>
+## حالة PWA والعمل دون اتصال (Offline)
+- التطبيق قابل للتثبيت كـ PWA على الهاتف والحاسوب.
+- الواجهة وهيكل التطبيق (Shell) يتم تخزينها مؤقتًا (Cached) للعمل المبدئي.
+- **ملاحظة:** البيانات الحساسة والإدخالات تعتمد على الاتصال بالإنترنت (`NetworkOnly` لقاعدة بيانات Supabase) لضمان اتساق البيانات وعدم حدوث تعارضات مالية.
+- عند انقطاع الاتصال، يظهر تنبيه للمستخدم ولن تعمل العمليات التي تتطلب الكتابة/القراءة من الخادم.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## ترتيب الإعداد (Setup Order)
+لإعداد المشروع على قاعدة بيانات Supabase الخاصة بك، قم بتشغيل الملفات التالية بالترتيب:
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+1. **`supabase/schema.sql`**: ينشئ الجداول، الـ Views، السياسات (RLS)، الدوال (RPCs)، وتهيئة الـ Storage.
+2. **`supabase/seed.sql`**: ملف البيانات التجريبية. **هام جداً:** قم بتشغيل هذا الأمر بشكل صريح مع تمرير معرّف المستخدم (User ID) الخاص بك:
+   ```sql
+   SELECT seed_demo_data('YOUR_USER_UUID_HERE');
+   ```
+3. **`supabase/tests/db.test.sql`**: يشغل اختبارات قاعدة البيانات للتحقق من سلامة القيود والعمليات الذرية (Atomic).
 
-</div>
+## ملخص الإغلاق والحماية (Release Blockers Resolved)
+
+- **الاستلام الجزئي والكلي (Idempotency):** تم استخدام المفتاح `idempotency_key` مع قيد `UNIQUE(project_id, idempotency_key)` في جدول `goods_receipts` لمنع تكرار الإدخال. الدالة `receive_goods` تقوم بتجاهل الإدخال المكرر وإرجاع معرف الاستلام الأصلي.
+- **عزل المستخدمين (RLS):** كل جدول يمتلك 4 سياسات (SELECT, INSERT, UPDATE, DELETE) تتحقق من ملكية المشروع للمستخدم الحالي (`user_id = auth.uid()`).
+- **أمان المرفقات (Storage):** الـ Bucket `attachments` هو Private، لا يمكن الوصول له إلا بروابط مؤقتة (`createSignedUrl`). مسار الملف يجب أن يبدأ بـ `project_id` والسياسة تتحقق من ملكية المشروع.
+- **العمليات الذرية (RPCs):** عمليات الاستلام والدفع تتم داخل Transactions محكمة لمنع الاستلام الزائد أو الدفع الزائد عبر الدوال `receive_goods` و `register_payment`.
+
+تم تنفيذ 8 اختبارات Unit Tests للحسابات المحلية. وتم إنشاء سكربت SQL يختبر العمليات المعقدة على قاعدة البيانات مباشرة.
