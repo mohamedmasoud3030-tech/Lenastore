@@ -5,9 +5,12 @@ import { useAuth } from './AuthContext';
 export interface Project {
   id: string;
   name: string;
-  location: string;
-  manager_name: string;
+  location: string | null;
+  manager_name: string | null;
+  phone: string | null;
   start_date: string;
+  owner_name: string | null;
+  currency: string;
 }
 
 interface ProjectContextType {
@@ -66,8 +69,6 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     void fetchProject();
   }, [fetchProject]);
 
-  // Treat a newly authenticated user as loading immediately, before the effect
-  // runs. This prevents a transient redirect to /setup-project.
   const loading = Boolean(userId && (fetching || loadedUserId !== userId));
 
   return (
