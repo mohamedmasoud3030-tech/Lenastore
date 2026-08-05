@@ -11,3 +11,4 @@ This release establishes a professional visual foundation for Lenastore:
 The refresh intentionally improves first impression and usability without changing the database contract or operational workflows.
 
 Validation target: typecheck, tests, production build, and PWA artifact generation.
+Compatibility check: supported Lucide icon set.
