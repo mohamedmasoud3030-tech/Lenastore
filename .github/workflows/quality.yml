@@ -12,6 +12,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,9 +25,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - name: Run live SQL flow tests when a test database is configured
-        if: ${{ secrets.SUPABASE_DB_URL != '' }}
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        if: ${{ env.SUPABASE_DB_URL != '' }}
         run: |
           for file in supabase/tests/*.sql; do
             echo "Running $file"
