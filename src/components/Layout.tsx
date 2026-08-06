@@ -186,6 +186,15 @@ export default function Layout() {
           )}
         >
           <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 shadow-2xs md:hidden hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              aria-label="فتح القائمة الجانبية"
+              title="فتح القائمة الجانبية"
+            >
+              <Menu size={20} />
+            </button>
             <BrandMark compact className="md:hidden" />
             <div className="min-w-0">
               <h2 className="truncate text-sm font-black text-slate-900 dark:text-slate-100">{project?.name || 'لوحة التشغيل'}</h2>
@@ -203,15 +212,6 @@ export default function Layout() {
               title="تبديل المظهر"
             >
               {theme === 'dark' ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-slate-600" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 shadow-2xs md:hidden"
-              aria-label="فتح القائمة"
-            >
-              <Menu size={20} />
             </button>
           </div>
         </header>

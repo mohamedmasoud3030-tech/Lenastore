@@ -3,17 +3,18 @@ import { supabase } from '../lib/supabase';
 import { useProject } from '../lib/ProjectContext';
 import { Supplier, SupplierBalance } from '../types';
 import { parseSupabaseError } from '../lib/supabaseErrors';
-import { PageHeader } from './common/PageHeader';
-import { KpiCard } from './common/KpiCard';
-import { LoadingSkeleton } from './common/LoadingSkeleton';
-import { EmptyState } from './common/EmptyState';
-import { ErrorState } from './common/ErrorState';
+import {
+  PageContainer,
+  FilterToolbar,
+  ActionButton,
+  KpiCard,
+  EmptyState,
+} from './common';
 import { useToast } from './common/ToastProvider';
 import { formatCurrency } from '../lib/formatters';
 import {
   Building2,
   Plus,
-  Search,
   Phone,
   FileText,
   DollarSign,
@@ -156,74 +157,55 @@ export default function Suppliers() {
   const totalPaidSum = supplierBalances.reduce((acc, b) => acc + Number(b.total_paid || 0), 0);
   const totalRemainingSum = supplierBalances.reduce((acc, b) => acc + Number(b.remaining_balance || 0), 0);
 
-  if (loading && suppliers.length === 0) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="الموردون" description="دليل الموردين والمقاولين والالتزامات المالية" />
-        <LoadingSkeleton rows={5} />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="الموردون والشركات التجميعية"
-        description="إدارة الموردين، متابعة مبالغ الشراء المسجلة لكل مورد، والمدفوعات والمستحقات."
-        actions={
-          <button
-            onClick={openCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-xs"
-          >
-            <Plus className="w-4 h-4" /> إضافة مورد جديد
-          </button>
-        }
-      />
-
-      {error && <ErrorState message={error} onRetry={fetchSuppliers} />}
-
-      {/* KPI Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard
-          title="عدد الموردين"
-          value={suppliers.length}
-          subtitle="مورد مسجل"
-          icon={<Building2 className="w-5 h-5" />}
-          variant="default"
-        />
-        <KpiCard
-          title="إجمالي مشتريات الموردين"
-          value={formatCurrency(totalPurchasesSum, currency)}
-          subtitle="قيمة عقود وفواتير التوريد"
-          variant="info"
-        />
-        <KpiCard
-          title="إجمالي السداد للموردين"
-          value={formatCurrency(totalPaidSum, currency)}
-          subtitle="مدفوعات مسددة"
-          variant="success"
-        />
-        <KpiCard
-          title="إجمالي المستحقات المتبقية"
-          value={formatCurrency(totalRemainingSum, currency)}
-          subtitle="مبالغ مؤجلة للموردين"
-          variant="danger"
-        />
-      </div>
-
-      {/* Search */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-        <div className="relative max-w-md">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="بحث باسم المورد، الشركة، أو رقم الهاتف..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-3 pr-9 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+    <PageContainer
+      title="الموردون والشركات التجميعية"
+      description="إدارة الموردين، متابعة مبالغ الشراء المسجلة لكل مورد، والمدفوعات والمستحقات."
+      loading={loading && suppliers.length === 0}
+      error={error}
+      onRetry={fetchSuppliers}
+      headerActions={
+        <ActionButton onClick={openCreateModal} icon={<Plus className="w-4 h-4" />}>
+          إضافة مورد جديد
+        </ActionButton>
+      }
+      kpiStats={
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <KpiCard
+            title="عدد الموردين"
+            value={suppliers.length}
+            subtitle="مورد مسجل"
+            icon={<Building2 className="w-5 h-5" />}
+            variant="default"
+          />
+          <KpiCard
+            title="إجمالي مشتريات الموردين"
+            value={formatCurrency(totalPurchasesSum, currency)}
+            subtitle="قيمة عقود وفواتير التوريد"
+            variant="info"
+          />
+          <KpiCard
+            title="إجمالي السداد للموردين"
+            value={formatCurrency(totalPaidSum, currency)}
+            subtitle="مدفوعات مسددة"
+            variant="success"
+          />
+          <KpiCard
+            title="إجمالي المستحقات المتبقية"
+            value={formatCurrency(totalRemainingSum, currency)}
+            subtitle="مبالغ مؤجلة للموردين"
+            variant="danger"
           />
         </div>
-      </div>
+      }
+      toolbar={
+        <FilterToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="بحث باسم المورد، الشركة، أو رقم الهاتف..."
+        />
+      }
+    >
 
       {/* Grid */}
       {filteredSuppliers.length === 0 ? (
@@ -412,6 +394,6 @@ export default function Suppliers() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

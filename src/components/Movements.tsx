@@ -3,26 +3,27 @@ import { supabase } from '../lib/supabase';
 import { useProject } from '../lib/ProjectContext';
 import { StockMovement, StockIssue, GoodsReceipt, MaterialStock } from '../types';
 import { parseSupabaseError } from '../lib/supabaseErrors';
-import { PageHeader } from './common/PageHeader';
-import { KpiCard } from './common/KpiCard';
-import { StatusBadge } from './common/StatusBadge';
-import { LoadingSkeleton } from './common/LoadingSkeleton';
-import { EmptyState } from './common/EmptyState';
-import { ErrorState } from './common/ErrorState';
+import {
+  PageContainer,
+  FilterToolbar,
+  ActionButton,
+  TabBar,
+  KpiCard,
+  StatusBadge,
+  EmptyState,
+} from './common';
 import { formatDate } from '../lib/formatters';
 import { CreateIssueVoucherModal } from './CreateIssueVoucherModal';
 import { StockIssuePrintModal } from './StockIssuePrintModal';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
-  Search,
   Plus,
   Printer,
   FileText,
   Calendar,
   Layers,
   Package2,
-  Filter,
 } from 'lucide-react';
 
 export default function Movements() {
@@ -121,140 +122,99 @@ export default function Movements() {
   const totalIssuesCount = stockIssues.length;
   const totalReceiptsCount = goodsReceipts.length;
 
-  if (loading && movements.length === 0) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="دفتر حركات المخزون وسندات الصرف" description="سجل الوارد والصادر ومتابعة سندات المستودع" />
-        <LoadingSkeleton rows={5} />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="حركات المخزون وسندات المستودع"
-        description="دفتر الحركات الشامل، إصدار وتوثيق سندات الصرف والاستلام الموقعي."
-        actions={
-          <button
-            onClick={() => setIsIssueModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-xs"
-          >
-            <Plus className="w-4 h-4" /> إصدار سند صرف جديد
-          </button>
-        }
-      />
-
-      {error && <ErrorState message={error} onRetry={fetchData} />}
-
-      {/* KPI Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard
-          title="إجمالي الحركات"
-          value={movements.length}
-          subtitle="حركة وارد وصرف مسجلة"
-          icon={<Layers className="w-5 h-5" />}
-          variant="default"
-        />
-        <KpiCard
-          title="حركات الوارد (+)"
-          value={totalInCount}
-          subtitle={`${totalReceiptsCount} سند استلام توريد`}
-          variant="success"
-        />
-        <KpiCard
-          title="سندات الصرف (-)"
-          value={totalIssuesCount}
-          subtitle={`${totalOutCount} عملية صرف موقعية`}
+    <PageContainer
+      title="حركات المخزون وسندات المستودع"
+      description="دفتر الحركات الشامل، إصدار وتوثيق سندات الصرف والاستلام الموقعي."
+      loading={loading && movements.length === 0}
+      error={error}
+      onRetry={fetchData}
+      headerActions={
+        <ActionButton
           variant="warning"
-        />
-        <KpiCard
-          title="إجمالي أصناف الكتالوج"
-          value={materials.length}
-          subtitle="مادة متتبعة بالمشروع"
-          variant="info"
-        />
-      </div>
-
-      {/* Navigation Tabs & Search Bar */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
-            <button
-              onClick={() => setActiveTab('LEDGER')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === 'LEDGER' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              سجل الحركات (Ledger)
-            </button>
-            <button
-              onClick={() => setActiveTab('ISSUES')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === 'ISSUES' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              سندات الصرف ({stockIssues.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('RECEIPTS')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === 'RECEIPTS' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              سندات الاستلام والوارد ({goodsReceipts.length})
-            </button>
-          </div>
-
-          <button
-            onClick={() => setIsIssueModalOpen(true)}
-            className="sm:hidden w-full py-2 text-xs font-bold bg-amber-600 text-white rounded-xl"
-          >
-            + سند صرف جديد
-          </button>
+          onClick={() => setIsIssueModalOpen(true)}
+          icon={<Plus className="w-4 h-4" />}
+        >
+          إصدار سند صرف جديد
+        </ActionButton>
+      }
+      kpiStats={
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <KpiCard
+            title="إجمالي الحركات"
+            value={movements.length}
+            subtitle="حركة وارد وصرف مسجلة"
+            icon={<Layers className="w-5 h-5" />}
+            variant="default"
+          />
+          <KpiCard
+            title="حركات الوارد (+)"
+            value={totalInCount}
+            subtitle={`${totalReceiptsCount} سند استلام توريد`}
+            variant="success"
+          />
+          <KpiCard
+            title="سندات الصرف (-)"
+            value={totalIssuesCount}
+            subtitle={`${totalOutCount} عملية صرف موقعية`}
+            variant="warning"
+          />
+          <KpiCard
+            title="إجمالي أصناف الكتالوج"
+            value={materials.length}
+            subtitle="مادة متتبعة بالمشروع"
+            variant="info"
+          />
         </div>
+      }
+      toolbar={
+        <div className="space-y-4">
+          <TabBar
+            tabs={[
+              { id: 'LEDGER', label: 'سجل الحركات (Ledger)' },
+              { id: 'ISSUES', label: 'سندات الصرف', badge: stockIssues.length },
+              { id: 'RECEIPTS', label: 'سندات الاستلام والوارد', badge: goodsReceipts.length },
+            ]}
+            activeTab={activeTab}
+            onChange={(tab) => setActiveTab(tab as any)}
+          />
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="بحث بالمادة، المستلم، المورد، رقم المرجع أو السند..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-3 pr-9 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-            />
-          </div>
+          <FilterToolbar
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="بحث بالمادة، المستلم، المورد، رقم المرجع أو السند..."
+            filters={
+              activeTab === 'LEDGER' ? (
+                <>
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value as any)}
+                    className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                  >
+                    <option value="ALL">جميع الحركات</option>
+                    <option value="IN">وارد فقط (+)</option>
+                    <option value="OUT">صرف فقط (-)</option>
+                  </select>
 
-          {activeTab === 'LEDGER' && (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as any)}
-                className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden w-full sm:w-auto"
-              >
-                <option value="ALL">جميع الحركات</option>
-                <option value="IN">وارد فقط (+)</option>
-                <option value="OUT">صرف فقط (-)</option>
-              </select>
-
-              <select
-                value={materialFilter}
-                onChange={(e) => setMaterialFilter(e.target.value)}
-                className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden w-full sm:w-auto"
-              >
-                <option value="ALL">جميع المواد</option>
-                {materials.map((m) => (
-                  <option key={m.material_id} value={m.material_id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+                  <select
+                    value={materialFilter}
+                    onChange={(e) => setMaterialFilter(e.target.value)}
+                    className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                  >
+                    <option value="ALL">جميع المواد</option>
+                    {materials.map((m) => (
+                      <option key={m.material_id} value={m.material_id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : undefined
+            }
+          />
         </div>
-      </div>
+      }
+    >
 
       {/* TAB 1: ALL MOVEMENTS LEDGER */}
       {activeTab === 'LEDGER' && (
@@ -512,6 +472,6 @@ export default function Movements() {
         isOpen={!!selectedPrintIssue}
         onClose={() => setSelectedPrintIssue(null)}
       />
-    </div>
+    </PageContainer>
   );
 }

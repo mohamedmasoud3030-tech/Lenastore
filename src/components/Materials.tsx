@@ -4,18 +4,19 @@ import { useProject } from '../lib/ProjectContext';
 import { MaterialStock } from '../types';
 import { parseSupabaseError } from '../lib/supabaseErrors';
 import { useToast } from './common/ToastProvider';
-import { PageHeader } from './common/PageHeader';
-import { KpiCard } from './common/KpiCard';
-import { StatusBadge } from './common/StatusBadge';
-import { LoadingSkeleton } from './common/LoadingSkeleton';
-import { EmptyState } from './common/EmptyState';
-import { ErrorState } from './common/ErrorState';
+import {
+  PageContainer,
+  FilterToolbar,
+  ActionButton,
+  CardContainer,
+  KpiCard,
+  StatusBadge,
+  EmptyState,
+} from './common';
 import { MaterialDetailsDrawer } from './MaterialDetailsDrawer';
 import {
   Package2,
   Plus,
-  Search,
-  Filter,
   AlertTriangle,
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -215,151 +216,122 @@ export default function Materials() {
     }
   };
 
-  if (loading && materials.length === 0) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="المواد والمخزون" description="إدارة كتالوج المواد ومتابعة أرصدة المخزون" />
-        <LoadingSkeleton rows={5} />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="المواد والمخزون"
-        description="كتالوج المواد والمستودع، تحديث الحد الأدنى، ومتابعة حركة الأصناف."
-        actions={
-          <button
-            onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-xs"
-          >
-            <Plus className="w-4 h-4" /> إضافة مادة جديدة
-          </button>
-        }
-      />
-
-      {error && <ErrorState message={error} onRetry={fetchMaterials} />}
-
-      {/* KPI Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard
-          title="إجمالي المواد"
-          value={totalMaterials}
-          subtitle="صنف مسجل في الكتالوج"
-          icon={<Package2 className="w-5 h-5" />}
-          variant="default"
-        />
-        <KpiCard
-          title="متوفر بشكل جيد"
-          value={availableCount}
-          subtitle="أعلى من الحد الأدنى"
-          variant="success"
-        />
-        <KpiCard
-          title="منخفض الرصيد"
-          value={lowStockCount}
-          subtitle="يتطلب إعادة طلب"
-          variant="warning"
-        />
-        <KpiCard
-          title="نفد من المخزن"
-          value={outOfStockCount}
-          subtitle="الرصيد 0 حاليًا"
-          variant="danger"
-        />
-      </div>
-
-      {/* Search & Filter Toolbar */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="ابحث عن مادة بالاسم أو التصنيف..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-3 pr-9 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+    <PageContainer
+      title="المواد والمخزون"
+      description="كتالوج المواد والمستودع، تحديث الحد الأدنى، ومتابعة حركة الأصناف."
+      loading={loading && materials.length === 0}
+      error={error}
+      onRetry={fetchMaterials}
+      headerActions={
+        <ActionButton onClick={handleOpenAddModal} icon={<Plus className="w-4 h-4" />}>
+          إضافة مادة جديدة
+        </ActionButton>
+      }
+      kpiStats={
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <KpiCard
+            title="إجمالي المواد"
+            value={totalMaterials}
+            subtitle="صنف مسجل في الكتالوج"
+            icon={<Package2 className="w-5 h-5" />}
+            variant="default"
+          />
+          <KpiCard
+            title="متوفر بشكل جيد"
+            value={availableCount}
+            subtitle="أعلى من الحد الأدنى"
+            variant="success"
+          />
+          <KpiCard
+            title="منخفض الرصيد"
+            value={lowStockCount}
+            subtitle="يتطلب إعادة طلب"
+            variant="warning"
+          />
+          <KpiCard
+            title="نفد من المخزن"
+            value={outOfStockCount}
+            subtitle="الرصيد 0 حاليًا"
+            variant="danger"
           />
         </div>
+      }
+      toolbar={
+        <FilterToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="ابحث عن مادة بالاسم أو التصنيف..."
+          viewMode={viewMode}
+          onViewModeChange={(mode) => setViewMode(mode as 'grid' | 'table')}
+          availableModes={['grid', 'table']}
+          filters={
+            <>
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ALL')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                    statusFilter === 'ALL'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  الكل ({totalMaterials})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('LOW')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                    statusFilter === 'LOW'
+                      ? 'bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  منخفض ({lowStockCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('OUT')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                    statusFilter === 'OUT'
+                      ? 'bg-rose-100 dark:bg-rose-950 text-rose-900 dark:text-rose-300 shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  نافد ({outOfStockCount})
+                </button>
+              </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
-            <button
-              onClick={() => setStatusFilter('ALL')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-                statusFilter === 'ALL' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              الكل ({totalMaterials})
-            </button>
-            <button
-              onClick={() => setStatusFilter('LOW')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-                statusFilter === 'LOW' ? 'bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              منخفض ({lowStockCount})
-            </button>
-            <button
-              onClick={() => setStatusFilter('OUT')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-                statusFilter === 'OUT' ? 'bg-rose-100 dark:bg-rose-950 text-rose-900 dark:text-rose-300 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              نافد ({outOfStockCount})
-            </button>
-          </div>
+              {categories.length > 0 && (
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                >
+                  <option value="ALL">جميع التصنيفات</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              )}
 
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'grid'
-                  ? 'bg-white dark:bg-slate-900 text-sky-900 dark:text-sky-400 shadow-2xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              شبكة (2×2)
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'table'
-                  ? 'bg-white dark:bg-slate-900 text-sky-900 dark:text-sky-400 shadow-2xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              جدول
-            </button>
-          </div>
-
-          {categories.length > 0 && (
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-            >
-              <option value="ALL">جميع التصنيفات</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          )}
-
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-          >
-            <option value="name">ترتيب بالاسم</option>
-            <option value="stock">ترتيب بالرصيد المتاح</option>
-            <option value="category">ترتيب بالتصنيف</option>
-          </select>
-        </div>
-      </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+              >
+                <option value="name">ترتيب بالاسم</option>
+                <option value="stock">ترتيب بالرصيد المتاح</option>
+                <option value="category">ترتيب بالتصنيف</option>
+              </select>
+            </>
+          }
+        />
+      }
+    >
 
       {/* Materials Table & List */}
       {filteredMaterials.length === 0 ? (
@@ -655,27 +627,26 @@ export default function Materials() {
                 </div>
 
                 <div className="bg-slate-50 dark:bg-slate-800/80 px-6 py-4 flex flex-row-reverse gap-3 border-t border-slate-200 dark:border-slate-800">
-                  <button
+                  <ActionButton
                     type="submit"
-                    disabled={submitting}
-                    className="px-5 py-2.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-xs disabled:opacity-50"
+                    loading={submitting}
                   >
-                    {submitting ? 'جاري الحفظ...' : editingMaterial ? 'تحديث المادة' : 'إضافة المادة'}
-                  </button>
-                  <button
+                    {editingMaterial ? 'تحديث المادة' : 'إضافة المادة'}
+                  </ActionButton>
+                  <ActionButton
                     type="button"
+                    variant="outline"
                     disabled={submitting}
                     onClick={() => setShowAddEditModal(false)}
-                    className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-xs"
                   >
                     إلغاء
-                  </button>
+                  </ActionButton>
                 </div>
               </form>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

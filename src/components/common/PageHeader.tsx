@@ -10,7 +10,7 @@ export interface PageHeaderProps {
   onBack?: () => void;
   backTo?: string;
   badge?: React.ReactNode;
-  icon?: React.ElementType;
+  icon?: React.ElementType | React.ReactNode;
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
@@ -21,7 +21,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   onBack,
   backTo,
   badge,
-  icon: Icon,
+  icon,
 }) => {
   const navigate = useNavigate();
   const pageActions = actions || action;
@@ -38,6 +38,23 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
   const showBackButton = Boolean(onBack || backTo);
 
+  const renderIcon = () => {
+    if (!icon) return null;
+    if (React.isValidElement(icon)) {
+      return (
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-400/15 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400 border border-amber-400/30">
+          {icon}
+        </span>
+      );
+    }
+    const IconComp = icon as React.ElementType;
+    return (
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-400/15 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400 border border-amber-400/30">
+        <IconComp size={20} />
+      </span>
+    );
+  };
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800 print:hidden transition-colors">
       <div className="flex items-start sm:items-center gap-3.5 min-w-0">
@@ -53,11 +70,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           </button>
         )}
 
-        {Icon && (
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-400/15 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400 border border-amber-400/30">
-            <Icon size={20} />
-          </span>
-        )}
+        {renderIcon()}
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">

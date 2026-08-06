@@ -3,21 +3,20 @@ import { supabase } from '../lib/supabase';
 import { useProject } from '../lib/ProjectContext';
 import { Purchase } from '../types';
 import { parseSupabaseError } from '../lib/supabaseErrors';
-import { PageHeader } from './common/PageHeader';
-import { KpiCard } from './common/KpiCard';
-import { StatusBadge } from './common/StatusBadge';
-import { LoadingSkeleton } from './common/LoadingSkeleton';
-import { EmptyState } from './common/EmptyState';
-import { ErrorState } from './common/ErrorState';
+import {
+  PageContainer,
+  FilterToolbar,
+  ActionButton,
+  CardContainer,
+  KpiCard,
+  StatusBadge,
+  EmptyState,
+} from './common';
 import { formatCurrency, formatDate } from '../lib/formatters';
 import { Link } from 'react-router-dom';
 import {
   ShoppingCart,
   Plus,
-  Search,
-  Filter,
-  DollarSign,
-  PackageCheck,
   ChevronLeft,
   Building2,
 } from 'lucide-react';
@@ -92,121 +91,83 @@ export default function Purchases() {
   }, 0);
   const totalRemainingSum = Math.max(0, totalPurchaseSum - totalPaidSum);
 
-  if (loading && purchases.length === 0) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="أوامر الشراء والتوريد" description="إدارة عقود التوريد والمدفوعات والمستودع" />
-        <LoadingSkeleton rows={5} />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="أوامر الشراء والتوريد"
-        description="إدارة العقود مع الموردين، تسوية الفواتير، متابعة الاستلام والمدفوعات."
-        actions={
-          <Link
-            to="/purchases/new"
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-xs"
-          >
-            <Plus className="w-4 h-4" /> أمر شراء جديد
-          </Link>
-        }
-      />
-
-      {error && <ErrorState message={error} onRetry={fetchPurchases} />}
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard
-          title="إجمالي أوامر الشراء"
-          value={formatCurrency(totalPurchaseSum, currency)}
-          subtitle={`${purchases.length} أمر شراء`}
-          icon={<ShoppingCart className="w-5 h-5" />}
-          variant="default"
-        />
-        <KpiCard
-          title="إجمالي المدفوع"
-          value={formatCurrency(totalPaidSum, currency)}
-          subtitle="مسدد للموردين"
-          variant="success"
-        />
-        <KpiCard
-          title="المتبقي للموردين"
-          value={formatCurrency(totalRemainingSum, currency)}
-          subtitle="مستحقات غير مسددة"
-          variant="danger"
-        />
-        <KpiCard
-          title="عدد المشتريات"
-          value={purchases.length}
-          subtitle="عقد توريد"
-          variant="info"
-        />
-      </div>
-
-      {/* Toolbar & Filters */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="بحث برقم الشراء، المورد، أو الفاتورة..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-3 pr-9 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+    <PageContainer
+      title="أوامر الشراء والتوريد"
+      description="إدارة العقود مع الموردين، تسوية الفواتير، متابعة الاستلام والمدفوعات."
+      loading={loading && purchases.length === 0}
+      error={error}
+      onRetry={fetchPurchases}
+      headerActions={
+        <ActionButton to="/purchases/new" icon={<Plus className="w-4 h-4" />}>
+          أمر شراء جديد
+        </ActionButton>
+      }
+      kpiStats={
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <KpiCard
+            title="إجمالي أوامر الشراء"
+            value={formatCurrency(totalPurchaseSum, currency)}
+            subtitle={`${purchases.length} أمر شراء`}
+            icon={<ShoppingCart className="w-5 h-5" />}
+            variant="default"
+          />
+          <KpiCard
+            title="إجمالي المدفوع"
+            value={formatCurrency(totalPaidSum, currency)}
+            subtitle="مسدد للموردين"
+            variant="success"
+          />
+          <KpiCard
+            title="المتبقي للموردين"
+            value={formatCurrency(totalRemainingSum, currency)}
+            subtitle="مستحقات غير مسددة"
+            variant="danger"
+          />
+          <KpiCard
+            title="عدد المشتريات"
+            value={purchases.length}
+            subtitle="عقد توريد"
+            variant="info"
           />
         </div>
+      }
+      toolbar={
+        <FilterToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="بحث برقم الشراء، المورد، أو الفاتورة..."
+          viewMode={viewMode}
+          onViewModeChange={(mode) => setViewMode(mode as 'grid' | 'list')}
+          availableModes={['grid', 'list']}
+          filters={
+            <>
+              <select
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value)}
+                className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+              >
+                <option value="ALL">جميع حالات الدفع</option>
+                <option value="UNPAID">غير مدفوع</option>
+                <option value="PARTIAL">مدفوع جزئياً</option>
+                <option value="PAID">مدفوع بالكامل</option>
+              </select>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'grid'
-                  ? 'bg-white dark:bg-slate-900 text-sky-900 dark:text-sky-400 shadow-2xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              شبكة (2×2)
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'list'
-                  ? 'bg-white dark:bg-slate-900 text-sky-900 dark:text-sky-400 shadow-2xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              قائمة
-            </button>
-          </div>
-
-          <select
-            value={paymentFilter}
-            onChange={(e) => setPaymentFilter(e.target.value)}
-            className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-          >
-            <option value="ALL">جميع حالات الدفع</option>
-            <option value="UNPAID">غير مدفوع</option>
-            <option value="PARTIAL">مدفوع جزئياً</option>
-            <option value="PAID">مدفوع بالكامل</option>
-          </select>
-
-          <select
-            value={receiptFilter}
-            onChange={(e) => setReceiptFilter(e.target.value)}
-            className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-          >
-            <option value="ALL">جميع حالات الاستلام</option>
-            <option value="UNRECEIVED">غير مستلم</option>
-            <option value="PARTIAL">مستلم جزئياً</option>
-            <option value="FULL">مستلم بالكامل</option>
-          </select>
-        </div>
-      </div>
+              <select
+                value={receiptFilter}
+                onChange={(e) => setReceiptFilter(e.target.value)}
+                className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+              >
+                <option value="ALL">جميع حالات الاستلام</option>
+                <option value="UNRECEIVED">غير مستلم</option>
+                <option value="PARTIAL">مستلم جزئياً</option>
+                <option value="FULL">مستلم بالكامل</option>
+              </select>
+            </>
+          }
+        />
+      }
+    >
 
       {/* List / Grid */}
       {filteredPurchases.length === 0 ? (
@@ -345,6 +306,6 @@ export default function Purchases() {
           })}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
