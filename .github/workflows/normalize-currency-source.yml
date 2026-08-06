@@ -1,0 +1,35 @@
+name: Normalize currency source
+
+on:
+  push:
+    branches: [feat/production-readiness-phase-4-20260806]
+    paths:
+      - scripts/normalize-currency-source.mjs
+      - .github/workflows/normalize-currency-source.yml
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/production-readiness-phase-4-20260806
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/normalize-currency-source.mjs
+      - name: Commit normalized source
+        run: |
+          if git diff --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src
+          git commit -m "Normalize all currency fallbacks to EGP"
+          git push origin HEAD:feat/production-readiness-phase-4-20260806
