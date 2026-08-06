@@ -4,7 +4,6 @@ import process from 'node:process';
 
 const root = process.cwd();
 const failures = [];
-const warnings = [];
 
 function walk(directory) {
   const absolute = join(root, directory);
@@ -69,6 +68,10 @@ const requiredFrontendRpcs = [
   'create_purchase_return',
   'cancel_purchase_request',
   'cancel_purchase',
+  'system_integrity_report',
+  'export_project_snapshot',
+  'report_client_error',
+  'seed_demo_project_if_empty',
 ];
 for (const rpc of requiredFrontendRpcs) {
   requireText(source, `'${rpc}'`, 'Frontend RPC contract');
@@ -102,9 +105,11 @@ for (const route of [
   'path="suppliers"',
   'path="reports"',
   'path="audit"',
+  'path="integrity"',
 ]) {
   requireText(appSource, route, 'Protected route contract');
 }
+requireText(appSource, '<RuntimeErrorReporter />', 'Runtime monitoring mount');
 
 for (const testFile of [
   'supabase/tests/db.test.sql',
@@ -112,6 +117,7 @@ for (const testFile of [
   'supabase/tests/payment_idempotency.test.sql',
   'supabase/tests/stock_issues.test.sql',
   'supabase/tests/reversals_and_returns.test.sql',
+  'supabase/tests/production_readiness.test.sql',
 ]) {
   if (!existsSync(join(root, testFile))) fail(`Missing SQL regression test: ${testFile}`);
 }
@@ -121,32 +127,21 @@ requireText(sqlTests, 'create_purchase_request_atomic(', 'Atomic request SQL cov
 requireText(sqlTests, 'create_purchase_atomic(', 'Atomic purchase SQL coverage');
 requireText(sqlTests, 'reverse_payment(', 'Payment reversal SQL coverage');
 requireText(sqlTests, 'create_purchase_return(', 'Purchase return SQL coverage');
+requireText(sqlTests, 'system_integrity_report(', 'Integrity SQL coverage');
+requireText(sqlTests, 'export_project_snapshot(', 'Export SQL coverage');
+requireText(sqlTests, 'seed_demo_project_if_empty(', 'Safe demo SQL coverage');
+requireText(sqlTests, 'report_client_error(', 'Runtime error SQL coverage');
 
-const legacyCurrencyFiles = new Set([
-  'src/components/Suppliers.tsx',
-  'src/components/Purchases.tsx',
-  'src/components/Reports.tsx',
-  'src/components/common/PrintDocumentModal.tsx',
-]);
 for (const path of sourceFiles) {
   const relativePath = relative(root, path);
   const text = readFileSync(path, 'utf8');
   if (/\|\|\s*['"](?:SAR|OMR)['"]|\?\?\s*['"](?:SAR|OMR)['"]/.test(text)) {
-    if (legacyCurrencyFiles.has(relativePath)) {
-      warnings.push(`Legacy currency fallback remains temporarily allowlisted: ${relativePath}`);
-    } else {
-      fail(`Forbidden non-EGP currency fallback: ${relativePath}`);
-    }
+    fail(`Forbidden non-EGP currency fallback: ${relativePath}`);
   }
 }
 
 if (/register_payment\s*\([^)]*'partial'\s*\)/s.test(sqlTests)) {
   fail('Legacy seven-argument register_payment call detected in SQL tests');
-}
-
-if (warnings.length) {
-  console.warn('\nContract warnings:');
-  warnings.forEach((warning) => console.warn(`- ${warning}`));
 }
 
 if (failures.length) {
@@ -155,4 +150,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Contract verification passed: ${sourceFiles.length} source files, ${requiredFrontendRpcs.length} RPCs, protected routes and SQL flow coverage.`);
+console.log(`Contract verification passed: ${sourceFiles.length} source files, ${requiredFrontendRpcs.length} RPCs, protected routes, EGP currency and SQL flow coverage.`);

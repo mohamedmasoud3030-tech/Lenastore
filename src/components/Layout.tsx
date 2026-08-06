@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import {
   ArrowRightLeft,
   Building2,
+  Database,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -46,6 +47,7 @@ const navGroups = [
     title: 'الرقابة والتصحيح',
     items: [
       { name: 'التدقيق والتصحيحات', shortName: 'التدقيق', to: '/audit', icon: ShieldCheck },
+      { name: 'سلامة النظام والنسخ', shortName: 'السلامة', to: '/integrity', icon: Database },
     ],
   },
 ];

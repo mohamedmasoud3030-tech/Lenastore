@@ -38,7 +38,7 @@ export default function Reports() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  const currency = project?.currency || 'SAR';
+  const currency = project?.currency || 'EGP';
 
   const loadReport = useCallback(
     async (type: ReportType) => {

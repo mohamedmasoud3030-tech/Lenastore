@@ -215,18 +215,18 @@ export default function PrintDocumentModal({
                   <div className="w-64 bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs space-y-1.5">
                     <div className="flex justify-between font-bold text-slate-700">
                       <span>إجمالي القيمة:</span>
-                      <span className="font-mono">{totals.subtotal?.toFixed(2)} {totals.currency || 'OMR'}</span>
+                      <span className="font-mono">{totals.subtotal?.toFixed(2)} {totals.currency || 'EGP'}</span>
                     </div>
                     {totals.paid !== undefined && (
                       <div className="flex justify-between text-emerald-700 font-bold">
                         <span>المسدد:</span>
-                        <span className="font-mono">{totals.paid?.toFixed(2)} {totals.currency || 'OMR'}</span>
+                        <span className="font-mono">{totals.paid?.toFixed(2)} {totals.currency || 'EGP'}</span>
                       </div>
                     )}
                     {totals.remaining !== undefined && (
                       <div className="flex justify-between text-amber-800 font-black border-t border-slate-300 pt-1.5 mt-1">
                         <span>المتبقي:</span>
-                        <span className="font-mono">{totals.remaining?.toFixed(2)} {totals.currency || 'OMR'}</span>
+                        <span className="font-mono">{totals.remaining?.toFixed(2)} {totals.currency || 'EGP'}</span>
                       </div>
                     )}
                   </div>

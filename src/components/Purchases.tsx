@@ -60,7 +60,7 @@ export default function Purchases() {
     void fetchPurchases();
   }, [fetchPurchases]);
 
-  const currency = project?.currency || 'SAR';
+  const currency = project?.currency || 'EGP';
 
   const filteredPurchases = purchases.filter((p) => {
     const balanceInfo = p.purchase_balances?.[0];
