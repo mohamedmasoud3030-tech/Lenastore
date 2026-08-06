@@ -21,6 +21,8 @@ import CreatePurchaseRequest from './components/CreatePurchaseRequest';
 import RequestDetails from './components/RequestDetails';
 import Reports from './components/Reports';
 import AuditAndCorrections from './components/AuditAndCorrections';
+import SystemIntegrity from './components/SystemIntegrity';
+import RuntimeErrorReporter from './components/RuntimeErrorReporter';
 
 function LoadingScreen() {
   return <div className="p-8 text-center">جاري التحميل...</div>;
@@ -58,39 +60,41 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppContent() {
-  if (!supabase) {
-    return <SupabaseSetup />;
-  }
+  if (!supabase) return <SupabaseSetup />;
 
   return (
-    <Routes>
-      <Route path="/login" element={<LoginRoute />} />
-      <Route path="/setup-project" element={<ProjectSetupRoute />} />
+    <>
+      <RuntimeErrorReporter />
+      <Routes>
+        <Route path="/login" element={<LoginRoute />} />
+        <Route path="/setup-project" element={<ProjectSetupRoute />} />
 
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Dashboard />} />
-        <Route path="requests" element={<PurchaseRequests />} />
-        <Route path="requests/new" element={<CreatePurchaseRequest />} />
-        <Route path="requests/:id" element={<RequestDetails />} />
-        <Route path="materials" element={<Materials />} />
-        <Route path="movements" element={<Movements />} />
-        <Route path="purchases" element={<Purchases />} />
-        <Route path="purchases/new" element={<CreatePurchase />} />
-        <Route path="purchases/:id" element={<PurchaseDetails />} />
-        <Route path="suppliers" element={<Suppliers />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="audit" element={<AuditAndCorrections />} />
-      </Route>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Dashboard />} />
+          <Route path="requests" element={<PurchaseRequests />} />
+          <Route path="requests/new" element={<CreatePurchaseRequest />} />
+          <Route path="requests/:id" element={<RequestDetails />} />
+          <Route path="materials" element={<Materials />} />
+          <Route path="movements" element={<Movements />} />
+          <Route path="purchases" element={<Purchases />} />
+          <Route path="purchases/new" element={<CreatePurchase />} />
+          <Route path="purchases/:id" element={<PurchaseDetails />} />
+          <Route path="suppliers" element={<Suppliers />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="audit" element={<AuditAndCorrections />} />
+          <Route path="integrity" element={<SystemIntegrity />} />
+        </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 
