@@ -62,7 +62,7 @@ export default function Materials() {
     try {
       const { data, error: fetchErr } = await supabase
         .from('material_stock')
-        .select('*')
+        .select('material_id,project_id,name,min_stock,unit,total_in,total_out,current_stock,category,notes')
         .eq('project_id', project.id);
 
       if (fetchErr) throw fetchErr;
@@ -148,7 +148,7 @@ export default function Materials() {
       category: mat.category || '',
       unit: mat.unit,
       min_stock: String(mat.min_stock),
-      notes: '',
+      notes: mat.notes || '',
     });
     setShowAddEditModal(true);
   };
