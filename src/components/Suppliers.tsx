@@ -45,7 +45,7 @@ export default function Suppliers() {
     notes: '',
   });
 
-  const currency = project?.currency || 'SAR';
+  const currency = project?.currency || 'EGP';
 
   const fetchSuppliers = useCallback(async () => {
     if (!supabase || !project) return;
