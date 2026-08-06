@@ -21,7 +21,19 @@ jobs:
           node-version: 22
       - run: npm ci
       - name: Verify frontend, RPC and route contracts
-        run: npm run test:contracts
+        id: contracts
+        continue-on-error: true
+        run: npm run test:contracts 2>&1 | tee contract-verification.log
+      - name: Upload contract diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-verification-log
+          path: contract-verification.log
+          if-no-files-found: error
+      - name: Fail on contract violations
+        if: ${{ steps.contracts.outcome == 'failure' }}
+        run: exit 1
       - run: npm run lint
       - run: npm test
       - name: Run live SQL flow tests when a test database is configured
