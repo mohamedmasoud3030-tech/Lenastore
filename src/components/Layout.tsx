@@ -10,6 +10,7 @@ import {
   Moon,
   Package2,
   ShoppingCart,
+  ShieldCheck,
   Sun,
   Users,
   WifiOff,
@@ -39,6 +40,12 @@ const navGroups = [
       { name: 'المشتريات والاستلام', shortName: 'المشتريات', to: '/purchases', icon: ShoppingCart },
       { name: 'سجل الموردين', shortName: 'الموردون', to: '/suppliers', icon: Users },
       { name: 'مركز التقارير A4', shortName: 'التقارير', to: '/reports', icon: PieChart },
+    ],
+  },
+  {
+    title: 'الرقابة والتصحيح',
+    items: [
+      { name: 'التدقيق والتصحيحات', shortName: 'التدقيق', to: '/audit', icon: ShieldCheck },
     ],
   },
 ];
@@ -108,7 +115,7 @@ export default function Layout() {
     };
   }, []);
 
-  const allNavItems = navGroups.flatMap((g) => g.items);
+  const allNavItems = navGroups.flatMap((group) => group.items);
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] dark:bg-[#0b0f19] md:flex md:flex-row text-slate-900 dark:text-slate-100 transition-colors" dir="rtl">
@@ -119,16 +126,13 @@ export default function Layout() {
         </div>
       )}
 
-      {/* Right Desktop Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 xl:w-72 shrink-0 flex-col overflow-hidden bg-slate-950 text-white md:flex border-l border-slate-900 shadow-xl z-30">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(14,116,144,0.25),transparent_22rem)]" />
-        
-        {/* Brand Header */}
+
         <div className="relative border-b border-white/10 px-5 py-5 flex items-center justify-between">
           <BrandMark inverse />
         </div>
 
-        {/* Current Project Card */}
         <div className="relative px-4 pt-4">
           <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3.5">
             <div className="flex items-center gap-3">
@@ -145,12 +149,10 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Navigation Items */}
         <div className="relative flex-1 overflow-y-auto px-4 py-5">
           <Navigation />
         </div>
 
-        {/* Bottom Actions */}
         <div className="relative border-t border-white/10 p-4 space-y-2">
           <button
             type="button"
@@ -176,9 +178,7 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <div className="min-w-0 flex-1 flex flex-col">
-        {/* Universal Top Bar */}
         <header
           className={clsx(
             'sticky z-40 flex min-h-16 items-center justify-between border-b border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 px-4 sm:px-6 backdrop-blur-md',
@@ -204,7 +204,6 @@ export default function Layout() {
 
           <div className="flex items-center gap-2">
             <NotificationCenter />
-
             <button
               type="button"
               onClick={toggleTheme}
@@ -223,7 +222,6 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar */}
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_35px_rgba(15,23,42,0.08)] backdrop-blur-md md:hidden">
         <div className="mx-auto grid h-16 max-w-xl grid-cols-5">
           {allNavItems.slice(0, 5).map((item) => (
@@ -250,7 +248,6 @@ export default function Layout() {
         </div>
       </nav>
 
-      {/* Mobile Right Drawer Menu */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-[80] md:hidden">
           <button
