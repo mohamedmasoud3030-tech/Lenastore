@@ -1,316 +1,526 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useProject } from '../lib/ProjectContext';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, PackageCheck, Banknote, FileText } from 'lucide-react';
-
+import { Purchase, PurchaseItem, Payment, GoodsReceipt } from '../types';
+import { parseSupabaseError } from '../lib/supabaseErrors';
+import { useToast } from './common/ToastProvider';
+import { StatusBadge } from './common/StatusBadge';
+import { LoadingSkeleton } from './common/LoadingSkeleton';
+import { ErrorState } from './common/ErrorState';
+import { formatCurrency, formatDate } from '../lib/formatters';
 import Attachments from './Attachments';
+import {
+  ArrowRight,
+  PackageCheck,
+  Banknote,
+  FileText,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  X,
+  History,
+  AlertTriangle,
+} from 'lucide-react';
 
 export default function PurchaseDetails() {
   const { id } = useParams<{ id: string }>();
   const { project } = useProject();
   const navigate = useNavigate();
-  
-  const [purchase, setPurchase] = useState<any>(null);
-  const [items, setItems] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
+  const toast = useToast();
+
+  const [purchase, setPurchase] = useState<Purchase | null>(null);
+  const [items, setItems] = useState<PurchaseItem[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [goodsReceipts, setGoodsReceipts] = useState<GoodsReceipt[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
-  
-  const [receiptForm, setReceiptForm] = useState<any[]>([]);
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [submittingReceipt, setSubmittingReceipt] = useState(false);
+
+  const [receiptForm, setReceiptForm] = useState<
+    { id: string; material_id: string; max_qty: number; receive_qty: string }[]
+  >([]);
 
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
     date: new Date().toISOString().split('T')[0],
-    method: 'TRANSFER',
+    method: 'TRANSFER' as 'CASH' | 'TRANSFER' | 'CHEQUE' | 'OTHER',
     reference_number: '',
-    notes: ''
+    notes: '',
   });
 
-  const fetchData = async () => {
+  const currency = project?.currency || 'SAR';
+
+  const fetchData = useCallback(async () => {
     if (!supabase || !project || !id) return;
+    setLoading(true);
+    setError(null);
+
     try {
-      const [purRes, itemsRes, payRes] = await Promise.all([
-        supabase.from('purchases').select('*, suppliers(name, company)').eq('id', id).single(),
+      const [purRes, itemsRes, payRes, grRes] = await Promise.all([
+        supabase.from('purchases').select('*, suppliers(name, company, phone)').eq('id', id).eq('project_id', project.id).single(),
         supabase.from('purchase_items').select('*, materials(name, unit)').eq('purchase_id', id),
-        supabase.from('payments').select('*').eq('purchase_id', id).order('date', { ascending: false })
+        supabase.from('payments').select('*').eq('purchase_id', id).order('date', { ascending: false }),
+        supabase.from('goods_receipts').select('*, goods_receipt_items(*, materials(name, unit))').eq('purchase_id', id).order('date', { ascending: false }),
       ]);
-      setPurchase(purRes.data);
-      setItems(itemsRes.data || []);
-      setPayments(payRes.data || []);
-      
-      setReceiptForm(itemsRes.data?.map(i => ({
-          id: i.id,
-          material_id: i.material_id,
-          max_qty: Number(i.quantity) - Number(i.received_quantity || 0),
-          receive_qty: Number(i.quantity) - Number(i.received_quantity || 0)
-      })) || []);
-      
-    } catch (e) {
-      console.error(e);
+
+      if (purRes.error) throw purRes.error;
+      if (itemsRes.error) throw itemsRes.error;
+      if (payRes.error) throw payRes.error;
+
+      setPurchase(purRes.data as Purchase);
+      setItems((itemsRes.data as any) || []);
+      setPayments((payRes.data as any) || []);
+      setGoodsReceipts((grRes.data as any) || []);
+
+      setReceiptForm(
+        (itemsRes.data || []).map((i: any) => {
+          const max = Math.max(0, Number(i.quantity) - Number(i.received_quantity || 0));
+          return {
+            id: i.id,
+            material_id: i.material_id,
+            max_qty: max,
+            receive_qty: String(max),
+          };
+        })
+      );
+    } catch (err: any) {
+      console.error(err);
+      setError(parseSupabaseError(err, 'حدث خطأ أثناء تحميل بيانات امر الشراء'));
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchData();
   }, [id, project]);
 
-  if (loading) return <div className="p-8 text-center text-gray-500">جاري التحميل...</div>;
-  if (!purchase) return <div className="p-8 text-center text-red-500">لم يتم العثور على العملية</div>;
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
-  const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const remaining = purchase.total - totalPaid;
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto">
+        <LoadingSkeleton rows={5} />
+      </div>
+    );
+  }
+
+  if (error || !purchase) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto">
+        <ErrorState message={error || 'لم يتم العثور على أمر الشراء'} onRetry={fetchData} />
+      </div>
+    );
+  }
+
+  const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const remaining = Math.max(0, Number(purchase.total) - totalPaid);
   const isFullyPaid = remaining <= 0;
 
+  // Add Payment handler with register_payment RPC
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || !project) return;
-    
+
     const amount = Number(paymentForm.amount);
-    if (amount <= 0) {
-      alert('مبلغ الدفعة يجب أن يكون أكبر من صفر');
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('مبلغ الدفعة يجب أن يكون أكبر من صفر');
       return;
     }
     if (amount > remaining) {
-      alert(`لا يمكن أن يتجاوز مبلغ الدفعة المبلغ المتبقي (${remaining})`);
+      toast.error(`لا يمكن أن يتجاوز مبلغ الدفعة المبلغ المتبقي (${formatCurrency(remaining, currency)})`);
       return;
     }
 
+    setSubmittingPayment(true);
+
     try {
-      const { data, error } = await supabase.rpc('register_payment', {
+      const { error: payErr } = await supabase.rpc('register_payment', {
         p_project_id: project.id,
         p_purchase_id: purchase.id,
         p_amount: amount,
         p_date: paymentForm.date,
         p_method: paymentForm.method,
-        p_reference_number: paymentForm.reference_number,
-        p_notes: paymentForm.notes
+        p_reference_number: paymentForm.reference_number.trim() || null,
+        p_notes: paymentForm.notes.trim() || null,
       });
-      
-      if (error) {
-          if (error.message.includes('exceeds')) {
-              alert('المبلغ يتجاوز الرصيد المتبقي');
-          } else {
-              throw error;
-          }
-          return;
+
+      if (payErr) {
+        toast.error(parseSupabaseError(payErr, 'حدث خطأ أثناء حفظ الدفعة'));
+        return;
       }
-      
+
+      toast.success(`تم تسجيل دفعة بقيمة ${formatCurrency(amount, currency)} بنجاح`);
       setShowPaymentModal(false);
-      setPaymentForm({ ...paymentForm, amount: '', reference_number: '', notes: '' });
-      fetchData();
-    } catch (e) {
-      console.error(e);
-      alert('حدث خطأ أثناء حفظ الدفعة');
+      setPaymentForm({
+        amount: '',
+        date: new Date().toISOString().split('T')[0],
+        method: 'TRANSFER',
+        reference_number: '',
+        notes: '',
+      });
+      void fetchData();
+    } catch (err: any) {
+      toast.error(parseSupabaseError(err));
+    } finally {
+      setSubmittingPayment(false);
     }
   };
 
+  // Receive Items handler with receive_goods RPC
   const handleReceiveItems = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || !project) return;
-    
-    const validItemsToReceive = receiptForm.filter(r => r.receive_qty > 0 && r.receive_qty <= r.max_qty);
+
+    const validItemsToReceive = receiptForm
+      .map((r) => ({
+        purchase_item_id: r.id,
+        quantity: Number(r.receive_qty) || 0,
+        max_qty: r.max_qty,
+      }))
+      .filter((r) => r.quantity > 0);
+
     if (validItemsToReceive.length === 0) {
-        alert('يرجى تحديد كميات صحيحة للاستلام');
-        return;
+      toast.error('يرجى تحديد كميات استلام أكبر من صفر');
+      return;
     }
+
+    for (const item of validItemsToReceive) {
+      if (item.quantity > item.max_qty) {
+        toast.error('إحدى الكميات المدخلة تتجاوز المتبقي للطلب');
+        return;
+      }
+    }
+
+    setSubmittingReceipt(true);
+    const receiptDate = new Date().toISOString().split('T')[0];
+    const receiptRef = `GR-${purchase.purchase_number.replace('PO-', '')}-${Date.now().toString().slice(-4)}`;
+    const idempotencyKey = `rec-${purchase.id}-${Date.now()}`;
+
+    const payloadItems = validItemsToReceive.map((item) => ({
+      purchase_item_id: item.purchase_item_id,
+      quantity: item.quantity,
+    }));
 
     try {
-      const receiptDate = new Date().toISOString().split('T')[0];
-      const receiptRef = `REC-${purchase.purchase_number}-${Date.now().toString().slice(-4)}`;
-      const idempotencyKey = `rec-${purchase.id}-${Date.now()}`;
-      
-      const payloadItems = validItemsToReceive.map(item => ({
-          purchase_item_id: item.id,
-          quantity: item.receive_qty
-      }));
-
-      const { error } = await supabase.rpc('receive_goods', {
-          p_project_id: project.id,
-          p_purchase_id: purchase.id,
-          p_receipt_number: receiptRef,
-          p_receipt_date: receiptDate,
-          p_notes: 'استلام مواد',
-          p_items: payloadItems,
-          p_idempotency_key: idempotencyKey
+      const { error: grErr } = await supabase.rpc('receive_goods', {
+        p_project_id: project.id,
+        p_purchase_id: purchase.id,
+        p_receipt_number: receiptRef,
+        p_receipt_date: receiptDate,
+        p_notes: 'استلام مواد موقعي',
+        p_items: payloadItems,
+        p_idempotency_key: idempotencyKey,
       });
 
-      if (error) {
-          if (error.message.includes('Cannot receive more')) {
-              alert('لا يمكن استلام كمية أكبر من المتبقية');
-          } else {
-              throw error;
-          }
-          return;
+      if (grErr) {
+        toast.error(parseSupabaseError(grErr, 'حدث خطأ أثناء تسجيل استلام المواد'));
+        return;
       }
 
+      toast.success(`تم إثبات استلام المواد بنجاح (سند: ${receiptRef})`);
       setShowReceiptModal(false);
-      fetchData();
-    } catch (e) {
-      console.error(e);
-      alert('حدث خطأ أثناء تسجيل الاستلام');
+      void fetchData();
+    } catch (err: any) {
+      toast.error(parseSupabaseError(err));
+    } finally {
+      setSubmittingReceipt(false);
     }
-  };
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(val);
   };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center gap-4">
-        <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-200">
-          <ArrowRight size={20} className="text-gray-600" />
-        </button>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            تفاصيل الشراء: <span className="text-blue-600" dir="ltr">{purchase.purchase_number}</span>
-          </h2>
-          <p className="text-sm text-gray-500">التاريخ: {purchase.date}</p>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+          >
+            <ArrowRight className="w-5 h-5" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900" dir="ltr">
+                {purchase.purchase_number}
+              </h1>
+              <StatusBadge variant={purchase.receipt_status} />
+              <StatusBadge variant={isFullyPaid ? 'paid' : totalPaid > 0 ? 'partial' : 'unpaid'} />
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              المورد: <span className="font-bold text-slate-800">{purchase.suppliers?.name}</span> • تاريخ أمر الشراء: {formatDate(purchase.date)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {purchase.receipt_status !== 'FULL' && (
+            <button
+              onClick={() => setShowReceiptModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+            >
+              <PackageCheck className="w-4 h-4" /> تسجيل استلام مواد
+            </button>
+          )}
+
+          {!isFullyPaid && (
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-xs"
+            >
+              <Banknote className="w-4 h-4" /> تسجيل دفعة جديدة
+            </button>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (Main Info & Items) */}
+        {/* Left Column (Items & Financial breakdown) */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="px-4 py-5 border-b border-gray-200 sm:px-6 flex justify-between items-center">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">المواد المطلوبة</h3>
-              {purchase.receipt_status !== 'FULL' && (
-                <button onClick={() => setShowReceiptModal(true)} className="inline-flex items-center gap-2 px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
-                  <PackageCheck size={16} /> تسجيل استلام
-                </button>
-              )}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">بنود أوردر الشراء ونسب الاستلام</h3>
+              <span className="text-xs text-slate-500">{items.length} بنود</span>
             </div>
-            <ul className="divide-y divide-gray-200">
-              {items.map((item) => (
-                <li key={item.id} className="px-4 py-4 sm:px-6 flex justify-between items-center hover:bg-gray-50">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{item.materials?.name}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      الكمية: {item.quantity} {item.materials?.unit} × السعر: {formatCurrency(item.unit_price)}
-                    </p>
-                    <p className="text-xs font-bold text-green-700 mt-1">
-                      تم استلام: {item.received_quantity || 0} من {item.quantity}
-                    </p>
+
+            <div className="divide-y divide-slate-100">
+              {items.map((item) => {
+                const isItemFull = Number(item.received_quantity || 0) >= Number(item.quantity);
+                return (
+                  <div key={item.id} className="p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{item.materials?.name || 'مادة'}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        الكمية المطلوبة: <span className="font-semibold text-slate-800">{item.quantity} {item.materials?.unit}</span> × سعر الوحدة: {formatCurrency(item.unit_price, currency)}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold">
+                        <span className={isItemFull ? 'text-emerald-700' : 'text-amber-700'}>
+                          تم استلام: {item.received_quantity || 0} من {item.quantity} {item.materials?.unit}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-left">
+                      <span className="text-sm font-bold text-slate-900">{formatCurrency(item.total, currency)}</span>
+                    </div>
                   </div>
-                  <div className="text-sm font-bold text-gray-900">
-                    {formatCurrency(item.total)}
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="bg-gray-50 px-4 py-4 sm:px-6">
-              <div className="space-y-2 text-sm text-gray-600">
-                <div className="flex justify-between"><p>المجموع الفرعي:</p><p>{formatCurrency(purchase.subtotal)}</p></div>
-                {purchase.discount > 0 && <div className="flex justify-between text-red-600"><p>الخصم:</p><p>-{formatCurrency(purchase.discount)}</p></div>}
-                {purchase.tax > 0 && <div className="flex justify-between"><p>الضريبة:</p><p>{formatCurrency(purchase.tax)}</p></div>}
-                {purchase.transport_cost > 0 && <div className="flex justify-between"><p>مصاريف نقل:</p><p>{formatCurrency(purchase.transport_cost)}</p></div>}
-                <div className="flex justify-between font-bold text-lg text-gray-900 pt-2 border-t border-gray-200"><p>الإجمالي النهائي:</p><p>{formatCurrency(purchase.total)}</p></div>
+                );
+              })}
+            </div>
+
+            {/* Financial breakdown */}
+            <div className="bg-slate-50 p-5 border-t border-slate-200 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-600">المجموع الفرعي:</span>
+                <span className="font-bold text-slate-900">{formatCurrency(purchase.subtotal, currency)}</span>
+              </div>
+              {purchase.discount > 0 && (
+                <div className="flex justify-between text-rose-600">
+                  <span>الخصم:</span>
+                  <span>-{formatCurrency(purchase.discount, currency)}</span>
+                </div>
+              )}
+              {purchase.tax > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">الضريبة:</span>
+                  <span>+{formatCurrency(purchase.tax, currency)}</span>
+                </div>
+              )}
+              {purchase.transport_cost > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">مصاريف نقل وتفريغ:</span>
+                  <span>+{formatCurrency(purchase.transport_cost, currency)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
+                <span>الإجمالي النهائي:</span>
+                <span className="text-sky-700">{formatCurrency(purchase.total, currency)}</span>
               </div>
             </div>
           </div>
-          
+
+          {/* Goods Receipt History Timeline */}
+          {goodsReceipts.length > 0 && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+              <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+                <History className="w-4 h-4 text-emerald-600" /> سجل سندات الاستلام المقترنة
+              </h3>
+
+              <div className="space-y-3">
+                {goodsReceipts.map((gr) => (
+                  <div key={gr.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900" dir="ltr">{gr.receipt_number}</span>
+                      <span className="text-slate-500">{formatDate(gr.date)}</span>
+                    </div>
+
+                    <div className="space-y-1 pt-1 border-t border-slate-200/60">
+                      {gr.goods_receipt_items?.map((gri) => (
+                        <div key={gri.id} className="flex justify-between text-slate-700">
+                          <span>{gri.materials?.name}:</span>
+                          <span className="font-bold text-emerald-700">+{gri.received_quantity} {gri.materials?.unit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Attachments Section */}
           <Attachments entityType="PURCHASE" entityId={purchase.id} />
         </div>
 
-        {/* Right Column (Supplier & Payments) */}
+        {/* Right Column (Supplier Details & Payments Ledger) */}
         <div className="space-y-6">
-          <div className="bg-white shadow rounded-lg p-5">
-            <h3 className="text-md font-medium text-gray-900 border-b border-gray-200 pb-3 mb-3">بيانات المورد</h3>
-            <p className="font-bold text-gray-800">{purchase.suppliers?.name}</p>
-            {purchase.suppliers?.company && <p className="text-sm text-gray-500">{purchase.suppliers.company}</p>}
+          {/* Supplier Info */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+            <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-slate-500" /> بيانات المورد
+            </h3>
+            <div>
+              <p className="font-bold text-slate-900 text-sm">{purchase.suppliers?.name}</p>
+              {purchase.suppliers?.company && <p className="text-xs text-slate-500 mt-0.5">{purchase.suppliers.company}</p>}
+              {purchase.suppliers?.phone && (
+                <p className="text-xs text-slate-600 mt-1" dir="ltr">
+                  هاتف: {purchase.suppliers.phone}
+                </p>
+              )}
+            </div>
           </div>
 
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="px-4 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-md font-medium text-gray-900">المدفوعات</h3>
+          {/* Financial Balances & Payments */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">سجل المدفوعات</h3>
               {!isFullyPaid && (
-                <button onClick={() => setShowPaymentModal(true)} className="inline-flex items-center gap-1 px-2 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200">
-                  <Banknote size={14} /> إضافة دفعة
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="text-xs font-bold text-sky-600 hover:text-sky-700"
+                >
+                  + إضافة دفعة
                 </button>
               )}
             </div>
-            
-            <div className="p-4 bg-gray-50 flex justify-between text-sm border-b border-gray-200">
-              <span className="text-gray-500">المتبقي:</span>
-              <span className={`font-bold ${isFullyPaid ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(remaining)}
+
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+              <span className="text-slate-500 font-medium">المبلغ المتبقي:</span>
+              <span className={`font-bold text-sm ${isFullyPaid ? 'text-emerald-700' : 'text-rose-600'}`}>
+                {formatCurrency(remaining, currency)}
               </span>
             </div>
 
-            <ul className="divide-y divide-gray-200 max-h-60 overflow-y-auto">
+            <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
               {payments.length === 0 ? (
-                <li className="px-4 py-4 text-center text-sm text-gray-500">لا توجد دفعات</li>
+                <div className="p-6 text-center text-xs text-slate-400">لا توجد دفعات مسجلة لهذا الأمر</div>
               ) : (
-                payments.map(pay => (
-                  <li key={pay.id} className="px-4 py-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm font-bold text-green-600">{formatCurrency(pay.amount)}</span>
-                      <span className="text-xs text-gray-500">{pay.date}</span>
+                payments.map((pay) => (
+                  <div key={pay.id} className="p-4 space-y-1 text-xs hover:bg-slate-50/80 transition-colors">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-emerald-700 text-sm">
+                        {formatCurrency(pay.amount, currency)}
+                      </span>
+                      <span className="text-slate-400">{formatDate(pay.date)}</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{pay.method === 'CASH' ? 'نقدي' : pay.method === 'TRANSFER' ? 'تحويل' : 'شيك'} {pay.reference_number && `- ${pay.reference_number}`}</p>
-                  </li>
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span>
+                        {pay.method === 'CASH'
+                          ? 'نقدي'
+                          : pay.method === 'TRANSFER'
+                          ? 'تحويل بنكي'
+                          : pay.method === 'CHEQUE'
+                          ? 'شيك'
+                          : 'أخرى'}
+                      </span>
+                      {pay.reference_number && <span dir="ltr">مرجع: {pay.reference_number}</span>}
+                    </div>
+                  </div>
                 ))
               )}
-            </ul>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Modal for Receiving Items */}
       {showReceiptModal && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto">
+        <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowReceiptModal(false)}></div>
-            <div className="relative transform overflow-hidden rounded-lg bg-white text-right align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:align-middle">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" onClick={() => setShowReceiptModal(false)} />
+            <div className="relative transform overflow-hidden rounded-2xl bg-white text-right shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-slate-200">
               <form onSubmit={handleReceiveItems}>
-                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                  <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">تسجيل استلام مواد</h3>
-                  <div className="space-y-4">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">المادة</th>
-                                <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">المطلوب</th>
-                                <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">مستلم سابقاً</th>
-                                <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">الكمية المستلمة الآن</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
-                            {items.map((item, idx) => {
-                                const rFormItem = receiptForm.find(r => r.id === item.id);
-                                if (!rFormItem || rFormItem.max_qty <= 0) return null;
-                                
-                                return (
-                                <tr key={item.id}>
-                                    <td className="px-3 py-3 text-sm text-gray-900">{item.materials?.name}</td>
-                                    <td className="px-3 py-3 text-sm text-center text-gray-500">{item.quantity}</td>
-                                    <td className="px-3 py-3 text-sm text-center text-green-600 font-bold">{item.received_quantity || 0}</td>
-                                    <td className="px-3 py-3 text-center w-32">
-                                        <input type="number" min="0" max={rFormItem.max_qty} step="0.01" 
-                                            value={rFormItem.receive_qty}
-                                            onChange={e => {
-                                                const val = e.target.value;
-                                                setReceiptForm(prev => prev.map(p => p.id === item.id ? {...p, receive_qty: val} : p));
-                                            }}
-                                            className="block w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm text-center focus:border-green-500 focus:outline-none" />
-                                    </td>
-                                </tr>
-                                )
-                            })}
-                        </tbody>
-                    </table>
+                <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <PackageCheck className="w-5 h-5 text-emerald-400" />
+                    <h3 className="text-base font-bold">تسجيل استلام مواد بالمستودع</h3>
                   </div>
-                </div>
-                <div className="bg-gray-50 px-4 py-3 flex gap-3 flex-row-reverse">
-                  <button type="submit" className="inline-flex w-full justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 sm:w-auto">
-                    تأكيد الاستلام
+                  <button type="button" onClick={() => setShowReceiptModal(false)} className="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <X className="w-5 h-5" />
                   </button>
-                  <button type="button" onClick={() => setShowReceiptModal(false)} className="inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 sm:w-auto">
+                </div>
+
+                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                  <table className="w-full text-right text-xs border border-slate-200 rounded-xl overflow-hidden">
+                    <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">اسم المادة</th>
+                        <th className="p-3 text-center">المطلوب</th>
+                        <th className="p-3 text-center">المستلم سابقاً</th>
+                        <th className="p-3 text-center">الكمية المستلمة الآن</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {items.map((item) => {
+                        const rFormItem = receiptForm.find((r) => r.id === item.id);
+                        if (!rFormItem || rFormItem.max_qty <= 0) return null;
+
+                        return (
+                          <tr key={item.id} className="hover:bg-slate-50">
+                            <td className="p-3 font-bold text-slate-900">{item.materials?.name}</td>
+                            <td className="p-3 text-center text-slate-600">{item.quantity} {item.materials?.unit}</td>
+                            <td className="p-3 text-center text-emerald-700 font-bold">{item.received_quantity || 0}</td>
+                            <td className="p-3 text-center w-36">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max={rFormItem.max_qty}
+                                value={rFormItem.receive_qty}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setReceiptForm((prev) =>
+                                    prev.map((p) => (p.id === item.id ? { ...p, receive_qty: val } : p))
+                                  );
+                                }}
+                                className="w-full px-2 py-1 text-center border border-slate-300 rounded-lg text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="bg-slate-50 px-6 py-4 flex flex-row-reverse gap-3 border-t border-slate-200">
+                  <button
+                    type="submit"
+                    disabled={submittingReceipt}
+                    className="px-5 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
+                  >
+                    {submittingReceipt ? 'جاري الاستلام الذري...' : 'تأكيد وحفظ الاستلام'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={submittingReceipt}
+                    onClick={() => setShowReceiptModal(false)}
+                    className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors shadow-xs"
+                  >
                     إلغاء
                   </button>
                 </div>
@@ -320,51 +530,94 @@ export default function PurchaseDetails() {
         </div>
       )}
 
+      {/* Modal for Adding Payment */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowPaymentModal(false)}></div>
-            <span className="hidden sm:inline-block sm:h-screen sm:align-middle">&#8203;</span>
-            <div className="inline-block transform overflow-hidden rounded-lg bg-white text-right align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md sm:align-middle">
+          <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" onClick={() => setShowPaymentModal(false)} />
+            <div className="relative transform overflow-hidden rounded-2xl bg-white text-right shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md border border-slate-200">
               <form onSubmit={handleAddPayment}>
-                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                  <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">تسجيل دفعة جديدة</h3>
-                  <div className="space-y-4">
-                    <div className="bg-blue-50 p-3 rounded-md text-sm text-blue-800 flex justify-between">
-                      <span>المبلغ المتبقي:</span>
-                      <span className="font-bold">{remaining.toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">المبلغ</label>
-                      <input type="number" required min="0.01" max={remaining} step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})}
-                        className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">التاريخ</label>
-                      <input type="date" required value={paymentForm.date} onChange={e => setPaymentForm({...paymentForm, date: e.target.value})}
-                        className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">طريقة الدفع</label>
-                      <select required value={paymentForm.method} onChange={e => setPaymentForm({...paymentForm, method: e.target.value})}
-                        className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none">
-                        <option value="CASH">نقدي</option>
-                        <option value="TRANSFER">حوالة بنكية</option>
-                        <option value="CHEQUE">شيك</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">رقم المرجع (اختياري)</label>
-                      <input type="text" value={paymentForm.reference_number} onChange={e => setPaymentForm({...paymentForm, reference_number: e.target.value})}
-                        className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none" />
-                    </div>
+                <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Banknote className="w-5 h-5 text-sky-400" />
+                    <h3 className="text-base font-bold">تسجيل دفعة جديدة للمورد</h3>
+                  </div>
+                  <button type="button" onClick={() => setShowPaymentModal(false)} className="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-4 text-xs">
+                  <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl flex justify-between items-center text-sky-950 font-medium">
+                    <span>المبلغ المتبقي للسداد:</span>
+                    <span className="font-bold text-sm">{formatCurrency(remaining, currency)}</span>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">المبلغ المدفوع *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max={remaining}
+                      required
+                      value={paymentForm.amount}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">تاريخ الدفعة *</label>
+                    <input
+                      type="date"
+                      required
+                      value={paymentForm.date}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">وسيلة الدفع *</label>
+                    <select
+                      value={paymentForm.method}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value as any })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    >
+                      <option value="TRANSFER">حوالة بنكية</option>
+                      <option value="CASH">نقدي</option>
+                      <option value="CHEQUE">شيك</option>
+                      <option value="OTHER">طريقة أخرى</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">رقم المرجع / الحوالة</label>
+                    <input
+                      type="text"
+                      placeholder="مثال: REF-99401"
+                      value={paymentForm.reference_number}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    />
                   </div>
                 </div>
-                <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                  <button type="submit" className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 sm:ms-3 sm:w-auto sm:text-sm">
-                    حفظ الدفعة
+
+                <div className="bg-slate-50 px-6 py-4 flex flex-row-reverse gap-3 border-t border-slate-200">
+                  <button
+                    type="submit"
+                    disabled={submittingPayment}
+                    className="px-5 py-2.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-xs disabled:opacity-50"
+                  >
+                    {submittingPayment ? 'جاري حفظ الدفعة...' : 'حفظ وتأكيد الدفعة'}
                   </button>
-                  <button type="button" onClick={() => setShowPaymentModal(false)} className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 sm:mt-0 sm:ms-3 sm:w-auto sm:text-sm">
+                  <button
+                    type="button"
+                    disabled={submittingPayment}
+                    onClick={() => setShowPaymentModal(false)}
+                    className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors shadow-xs"
+                  >
                     إلغاء
                   </button>
                 </div>

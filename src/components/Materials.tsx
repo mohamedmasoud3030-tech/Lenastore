@@ -1,198 +1,569 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useProject } from '../lib/ProjectContext';
-import { Plus, Search, Package2 } from 'lucide-react';
-
-interface MaterialStock {
-  material_id: string;
-  name: string;
-  unit: string;
-  min_stock: number;
-  total_in: number;
-  total_out: number;
-  current_stock: number;
-}
+import { MaterialStock } from '../types';
+import { parseSupabaseError } from '../lib/supabaseErrors';
+import { useToast } from './common/ToastProvider';
+import { PageHeader } from './common/PageHeader';
+import { KpiCard } from './common/KpiCard';
+import { StatusBadge } from './common/StatusBadge';
+import { LoadingSkeleton } from './common/LoadingSkeleton';
+import { EmptyState } from './common/EmptyState';
+import { ErrorState } from './common/ErrorState';
+import { MaterialDetailsDrawer } from './MaterialDetailsDrawer';
+import {
+  Package2,
+  Plus,
+  Search,
+  Filter,
+  AlertTriangle,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  X,
+  Edit2,
+  ChevronRight,
+} from 'lucide-react';
 
 export default function Materials() {
   const { project } = useProject();
+  const toast = useToast();
+
   const [materials, setMaterials] = useState<MaterialStock[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [newMaterial, setNewMaterial] = useState({
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'LOW' | 'OUT' | 'AVAILABLE'>('ALL');
+  const [sortBy, setSortBy] = useState<'name' | 'stock' | 'category'>('name');
+
+  const [selectedMaterial, setSelectedMaterial] = useState<MaterialStock | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const [showAddEditModal, setShowAddEditModal] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<MaterialStock | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [form, setForm] = useState({
     name: '',
     category: '',
-    unit: '',
-    min_stock: 0,
-    notes: ''
+    unit: 'متر مكعب',
+    min_stock: '0',
+    notes: '',
   });
 
-  const fetchMaterials = async () => {
+  const fetchMaterials = useCallback(async () => {
     if (!supabase || !project) return;
+    setLoading(true);
+    setError(null);
+
     try {
-      const { data, error } = await supabase
+      const { data, error: fetchErr } = await supabase
         .from('material_stock')
         .select('*')
         .eq('project_id', project.id);
-      
-      if (error) throw error;
-      setMaterials(data || []);
-    } catch (e) {
-      console.error(e);
+
+      if (fetchErr) throw fetchErr;
+
+      setMaterials((data as MaterialStock[]) || []);
+    } catch (err: any) {
+      console.error(err);
+      setError(parseSupabaseError(err, 'حدث خطأ أثناء تحميل قائمة المواد'));
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchMaterials();
   }, [project]);
 
-  const handleAddMaterial = async (e: React.FormEvent) => {
+  useEffect(() => {
+    void fetchMaterials();
+  }, [fetchMaterials]);
+
+  // Categories list
+  const categories = Array.from(
+    new Set(materials.map((m) => m.category).filter(Boolean) as string[])
+  );
+
+  // Filters & Sorting logic
+  const filteredMaterials = materials
+    .filter((m) => {
+      const matchSearch =
+        m.name.toLowerCase().includes(search.toLowerCase()) ||
+        (m.category && m.category.toLowerCase().includes(search.toLowerCase()));
+
+      const matchCategory = categoryFilter === 'ALL' || m.category === categoryFilter;
+
+      let matchStatus = true;
+      const current = Number(m.current_stock);
+      const min = Number(m.min_stock);
+
+      if (statusFilter === 'LOW') {
+        matchStatus = current <= min && current > 0;
+      } else if (statusFilter === 'OUT') {
+        matchStatus = current <= 0;
+      } else if (statusFilter === 'AVAILABLE') {
+        matchStatus = current > min;
+      }
+
+      return matchSearch && matchCategory && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'stock') {
+        return Number(b.current_stock) - Number(a.current_stock);
+      }
+      if (sortBy === 'category') {
+        return (a.category || '').localeCompare(b.category || '', 'ar');
+      }
+      return a.name.localeCompare(b.name, 'ar');
+    });
+
+  // KPI Calculations
+  const totalMaterials = materials.length;
+  const lowStockCount = materials.filter(
+    (m) => Number(m.current_stock) <= Number(m.min_stock) && Number(m.current_stock) > 0
+  ).length;
+  const outOfStockCount = materials.filter((m) => Number(m.current_stock) <= 0).length;
+  const availableCount = materials.filter(
+    (m) => Number(m.current_stock) > Number(m.min_stock)
+  ).length;
+
+  const handleOpenAddModal = () => {
+    setEditingMaterial(null);
+    setForm({
+      name: '',
+      category: '',
+      unit: 'طُن',
+      min_stock: '10',
+      notes: '',
+    });
+    setShowAddEditModal(true);
+  };
+
+  const handleOpenEditModal = (mat: MaterialStock, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditingMaterial(mat);
+    setForm({
+      name: mat.name,
+      category: mat.category || '',
+      unit: mat.unit,
+      min_stock: String(mat.min_stock),
+      notes: '',
+    });
+    setShowAddEditModal(true);
+  };
+
+  const handleSaveMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || !project) return;
-    
+
+    if (!form.name.trim()) {
+      toast.error('يرجى إدخال اسم المادة');
+      return;
+    }
+    if (!form.unit.trim()) {
+      toast.error('يرجى إدخال وحدة القياس');
+      return;
+    }
+
+    const minStockVal = Number(form.min_stock);
+    if (isNaN(minStockVal) || minStockVal < 0) {
+      toast.error('الحد الأدنى للمخزون يجب أن يكون صفرًا أو أكثر');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const { error } = await supabase.from('materials').insert([{
-        ...newMaterial,
-        project_id: project.id
-      }]);
-      if (error) throw error;
-      
-      setShowAddModal(false);
-      setNewMaterial({ name: '', category: '', unit: '', min_stock: 0, notes: '' });
-      fetchMaterials();
-    } catch (e) {
-      console.error(e);
-      alert('حدث خطأ أثناء الإضافة');
+      if (editingMaterial) {
+        // Update
+        const { error: updateErr } = await supabase
+          .from('materials')
+          .update({
+            name: form.name.trim(),
+            category: form.category.trim() || null,
+            unit: form.unit.trim(),
+            min_stock: minStockVal,
+            notes: form.notes.trim() || null,
+          })
+          .eq('id', editingMaterial.material_id)
+          .eq('project_id', project.id);
+
+        if (updateErr) throw updateErr;
+        toast.success(`تم تحديث المادة "${form.name}" بنجاح`);
+      } else {
+        // Create
+        const { error: insertErr } = await supabase.from('materials').insert([
+          {
+            project_id: project.id,
+            name: form.name.trim(),
+            category: form.category.trim() || null,
+            unit: form.unit.trim(),
+            min_stock: minStockVal,
+            notes: form.notes.trim() || null,
+          },
+        ]);
+
+        if (insertErr) throw insertErr;
+        toast.success(`تم إضافة المادة "${form.name}" بنجاح`);
+      }
+
+      setShowAddEditModal(false);
+      void fetchMaterials();
+    } catch (err: any) {
+      toast.error(parseSupabaseError(err, 'حدث خطأ أثناء حفظ المادة'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const filtered = materials.filter(m => m.name.includes(search));
+  if (loading && materials.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="المواد والمخزون" description="إدارة كتالوج المواد ومتابعة أرصدة المخزون" />
+        <LoadingSkeleton rows={5} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="sm:flex sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">المواد والمخزون</h2>
-          <p className="mt-1 text-sm text-gray-500">إدارة كتالوج المواد والاطلاع على رصيد المخزون الحالي.</p>
-        </div>
-        <div className="mt-4 sm:mt-0">
+      <PageHeader
+        title="المواد والمخزون"
+        description="كتالوج المواد والمستودع، تحديث الحد الأدنى، ومتابعة حركة الأصناف."
+        actions={
           <button
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+            onClick={handleOpenAddModal}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-xs"
           >
-            <Plus size={20} />
-            إضافة مادة جديدة
+            <Plus className="w-4 h-4" /> إضافة مادة جديدة
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="relative max-w-md">
-        <div className="absolute inset-y-0 right-0 flex items-center pe-3 pointer-events-none">
-          <Search className="h-5 w-5 text-gray-400" />
-        </div>
-        <input
-          type="text"
-          className="block w-full rounded-md border-gray-300 py-2 ps-10 pe-3 text-sm focus:border-blue-500 focus:ring-blue-500 shadow-sm border"
-          placeholder="ابحث عن مادة..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+      {error && <ErrorState message={error} onRetry={fetchMaterials} />}
+
+      {/* KPI Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <KpiCard
+          title="إجمالي المواد"
+          value={totalMaterials}
+          subtitle="صنف مسجل في الكتالوج"
+          icon={<Package2 className="w-5 h-5" />}
+          variant="default"
+        />
+        <KpiCard
+          title="متوفر بشكل جيد"
+          value={availableCount}
+          subtitle="أعلى من الحد الأدنى"
+          variant="success"
+        />
+        <KpiCard
+          title="منخفض الرصيد"
+          value={lowStockCount}
+          subtitle="يتطلب إعادة طلب"
+          variant="warning"
+        />
+        <KpiCard
+          title="نفد من المخزن"
+          value={outOfStockCount}
+          subtitle="الرصيد 0 حاليًا"
+          variant="danger"
         />
       </div>
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <ul className="divide-y divide-gray-200">
-          {loading ? (
-            <li className="px-4 py-8 text-center text-gray-500">جاري التحميل...</li>
-          ) : filtered.length === 0 ? (
-            <li className="px-4 py-8 text-center text-gray-500">لا توجد مواد مطابقة.</li>
-          ) : (
-            filtered.map((item) => {
-              const isLowStock = item.current_stock <= item.min_stock;
-              const isOutOfStock = item.current_stock <= 0;
+      {/* Search & Filter Toolbar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="ابحث عن مادة بالاسم أو التصنيف..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-3 pr-9 py-2 text-xs border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+          />
+        </div>
 
-              return (
-                <li key={item.material_id}>
-                  <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Package2 className="text-gray-400 h-6 w-6" />
-                        <p className="text-sm font-medium text-blue-600 truncate">{item.name}</p>
-                      </div>
-                      <div className="ms-2 flex-shrink-0 flex">
-                        <p className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          isOutOfStock ? 'bg-red-100 text-red-800' :
-                          isLowStock ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {isOutOfStock ? 'نفد' : isLowStock ? 'منخفض' : 'متوفر'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-2 sm:flex sm:justify-between">
-                      <div className="sm:flex sm:gap-6 text-sm text-gray-500">
-                        <p>الرصيد الحالي: <span className="font-bold text-gray-900">{item.current_stock} {item.unit}</span></p>
-                        <p className="mt-2 sm:mt-0">إجمالي الداخل: {item.total_in}</p>
-                        <p className="mt-2 sm:mt-0">إجمالي الصرف: {item.total_out}</p>
-                      </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                        الحد الأدنى: {item.min_stock}
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              );
-            })
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs">
+            <button
+              onClick={() => setStatusFilter('ALL')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              الكل ({totalMaterials})
+            </button>
+            <button
+              onClick={() => setStatusFilter('LOW')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                statusFilter === 'LOW' ? 'bg-amber-100 text-amber-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              منخفض ({lowStockCount})
+            </button>
+            <button
+              onClick={() => setStatusFilter('OUT')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                statusFilter === 'OUT' ? 'bg-rose-100 text-rose-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              نافد ({outOfStockCount})
+            </button>
+          </div>
+
+          {categories.length > 0 && (
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+            >
+              <option value="ALL">جميع التصنيفات</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
           )}
-        </ul>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+          >
+            <option value="name">ترتيب بالاسم</option>
+            <option value="stock">ترتيب بالرصيد المتاح</option>
+            <option value="category">ترتيب بالتصنيف</option>
+          </select>
+        </div>
       </div>
 
-      {showAddModal && (
+      {/* Materials Table & List */}
+      {filteredMaterials.length === 0 ? (
+        <EmptyState
+          title="لا توجد مواد مطابقة"
+          description={search ? 'جرب البحث بكلمة أخرى أو تعديل تصفية الحالة.' : 'لم يتم إضافة مواد لهذا المشروع بعد.'}
+          action={
+            <button
+              onClick={handleOpenAddModal}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700"
+            >
+              <Plus className="w-4 h-4" /> إضافة مادة جديدة
+            </button>
+          }
+        />
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-right text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                <tr>
+                  <th className="px-5 py-3.5">اسم المادة والتصنيف</th>
+                  <th className="px-4 py-3.5 text-center">الوحدة</th>
+                  <th className="px-4 py-3.5 text-center">الوارد المخزني</th>
+                  <th className="px-4 py-3.5 text-center">الصرف المخزني</th>
+                  <th className="px-4 py-3.5 text-center">الرصيد المتاح</th>
+                  <th className="px-4 py-3.5 text-center">الحد الأدنى</th>
+                  <th className="px-4 py-3.5 text-center">الحالة</th>
+                  <th className="px-5 py-3.5 text-left">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800">
+                {filteredMaterials.map((item) => {
+                  const stock = Number(item.current_stock);
+                  const min = Number(item.min_stock);
+                  const isLow = stock <= min && stock > 0;
+                  const isOut = stock <= 0;
+                  const badgeVariant = isOut ? 'out_of_stock' : isLow ? 'low' : 'available';
+
+                  return (
+                    <tr
+                      key={item.material_id}
+                      onClick={() => {
+                        setSelectedMaterial(item);
+                        setIsDrawerOpen(true);
+                      }}
+                      className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-slate-100 group-hover:bg-sky-100 group-hover:text-sky-700 text-slate-500 rounded-xl transition-colors">
+                            <Package2 className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 group-hover:text-sky-600 transition-colors">
+                              {item.name}
+                            </span>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {item.category || 'بدون تصنيف'}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-4 text-center text-slate-600 font-medium">
+                        {item.unit}
+                      </td>
+
+                      <td className="px-4 py-4 text-center font-semibold text-emerald-700">
+                        +{item.total_in}
+                      </td>
+
+                      <td className="px-4 py-4 text-center font-semibold text-amber-700">
+                        -{item.total_out}
+                      </td>
+
+                      <td className="px-4 py-4 text-center">
+                        <span
+                          className={`text-sm font-bold ${
+                            isOut
+                              ? 'text-rose-600'
+                              : isLow
+                              ? 'text-amber-600'
+                              : 'text-slate-900'
+                          }`}
+                        >
+                          {stock}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-4 text-center text-slate-500 font-medium">
+                        {min}
+                      </td>
+
+                      <td className="px-4 py-4 text-center">
+                        <StatusBadge variant={badgeVariant} />
+                      </td>
+
+                      <td className="px-5 py-4 text-left">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={(e) => handleOpenEditModal(item, e)}
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                            title="تعديل المادة"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <ChevronRight className="w-4 h-4 text-slate-400" />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Material Details History Drawer */}
+      <MaterialDetailsDrawer
+        material={selectedMaterial}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onEdit={(mat) => handleOpenEditModal(mat)}
+      />
+
+      {/* Add / Edit Material Modal */}
+      {showAddEditModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowAddModal(false)}></div>
-            <span className="hidden sm:inline-block sm:h-screen sm:align-middle">&#8203;</span>
-            <div className="inline-block transform overflow-hidden rounded-lg bg-white text-right align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
-              <form onSubmit={handleAddMaterial}>
-                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                  <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">إضافة مادة جديدة</h3>
-                  <div className="space-y-4">
+          <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
+            <div
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+              onClick={() => setShowAddEditModal(false)}
+            />
+            <div className="relative transform overflow-hidden rounded-2xl bg-white text-right shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md border border-slate-200">
+              <form onSubmit={handleSaveMaterial}>
+                <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
+                  <h3 className="text-base font-bold">
+                    {editingMaterial ? 'تعديل بيانات مادة' : 'إضافة مادة جديدة للكتالوج'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddEditModal(false)}
+                    className="text-slate-400 hover:text-white p-1 rounded-lg"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">اسم المادة *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="مثال: أسمنت بورتلاندي / حديد 12 مم"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">اسم المادة</label>
-                      <input type="text" required value={newMaterial.name} onChange={e => setNewMaterial({...newMaterial, name: e.target.value})}
-                        className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm" />
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">التصنيف</label>
+                      <input
+                        type="text"
+                        placeholder="مثال: خرسانات / تشطيبات"
+                        value={form.category}
+                        onChange={(e) => setForm({ ...form, category: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">التصنيف</label>
-                      <input type="text" value={newMaterial.category} onChange={e => setNewMaterial({...newMaterial, category: e.target.value})}
-                        className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">الوحدة</label>
-                        <input type="text" required placeholder="كيس، طن، حبة" value={newMaterial.unit} onChange={e => setNewMaterial({...newMaterial, unit: e.target.value})}
-                          className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">الحد الأدنى للتنبيه</label>
-                        <input type="number" min="0" required value={newMaterial.min_stock} onChange={e => setNewMaterial({...newMaterial, min_stock: Number(e.target.value)})}
-                          className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">ملاحظات</label>
-                      <textarea rows={3} value={newMaterial.notes} onChange={e => setNewMaterial({...newMaterial, notes: e.target.value})}
-                        className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"></textarea>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">وحدة القياس *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="مثال: طُن / كيس / متر مكعب"
+                        value={form.unit}
+                        onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      />
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">الحد الأدنى للتنبيه *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={form.min_stock}
+                      onChange={(e) => setForm({ ...form, min_stock: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      سيتم إظهار تنبيه المادة المنخفضة عندما يقل الرصيد المتاح عن هذا العدد.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">ملاحظات وصفية</label>
+                    <textarea
+                      rows={2}
+                      value={form.notes}
+                      onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    ></textarea>
+                  </div>
                 </div>
-                <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                  <button type="submit" className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 sm:ms-3 sm:w-auto sm:text-sm">
-                    حفظ المادة
+
+                <div className="bg-slate-50 px-6 py-4 flex flex-row-reverse gap-3 border-t border-slate-200">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-5 py-2.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-xs disabled:opacity-50"
+                  >
+                    {submitting ? 'جاري الحفظ...' : editingMaterial ? 'تحديث المادة' : 'إضافة المادة'}
                   </button>
-                  <button type="button" onClick={() => setShowAddModal(false)} className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 sm:mt-0 sm:ms-3 sm:w-auto sm:text-sm">
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => setShowAddEditModal(false)}
+                    className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors shadow-xs"
+                  >
                     إلغاء
                   </button>
                 </div>
