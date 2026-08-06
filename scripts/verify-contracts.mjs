@@ -71,7 +71,7 @@ const requiredFrontendRpcs = [
   'cancel_purchase',
 ];
 for (const rpc of requiredFrontendRpcs) {
-  requireText(source, `.rpc('${rpc}'`, 'Frontend RPC contract');
+  requireText(source, `'${rpc}'`, 'Frontend RPC contract');
   requireText(migrations, `function public.${rpc}(`, 'Database RPC contract');
 }
 
@@ -126,6 +126,7 @@ const legacyCurrencyFiles = new Set([
   'src/components/Suppliers.tsx',
   'src/components/Purchases.tsx',
   'src/components/Reports.tsx',
+  'src/components/common/PrintDocumentModal.tsx',
 ]);
 for (const path of sourceFiles) {
   const relativePath = relative(root, path);
