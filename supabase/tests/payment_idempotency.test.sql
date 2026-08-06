@@ -115,10 +115,15 @@ BEGIN
     RAISE EXCEPTION 'idempotent retry returned a different payment';
   END IF;
 
-  SELECT count(*), sum(amount), min(created_by)
-  INTO v_count, v_total, v_creator
+  SELECT count(*), sum(amount)
+  INTO v_count, v_total
   FROM public.payments
   WHERE project_id = '71000000-0000-4000-8000-000000000001';
+
+  SELECT created_by
+  INTO v_creator
+  FROM public.payments
+  WHERE id = v_first;
 
   IF v_count <> 1 OR v_total <> 250 THEN
     RAISE EXCEPTION 'retry duplicated payment: count %, total %', v_count, v_total;
