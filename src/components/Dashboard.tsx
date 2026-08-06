@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -13,9 +13,12 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useProject } from '../lib/ProjectContext';
+import { formatCurrency } from '../lib/formatters';
+import { parseSupabaseError } from '../lib/supabaseErrors';
 import AnalyticsCharts from './AnalyticsCharts';
 import { PageHeader } from './common/PageHeader';
 import { LoadingSkeleton } from './common/LoadingSkeleton';
+import { ErrorState } from './common/ErrorState';
 
 interface DashboardStats {
   totalPurchases: number;
@@ -35,89 +38,90 @@ export default function Dashboard() {
   const { project } = useProject();
   const [stats, setStats] = useState<DashboardStats>(initialStats);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [recentMovements, setRecentMovements] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (!project) return;
+  const fetchDashboard = useCallback(async () => {
+    if (!project) {
+      setStats(initialStats);
+      setRecentMovements([]);
+      setLoading(false);
+      return;
+    }
 
-    const fetchDashboard = async () => {
-      setLoading(true);
+    setLoading(true);
+    setError(null);
 
-      try {
-        const [purchasesRes, paymentsRes, materialsRes, requestsRes, movementsRes] = await Promise.all([
-          supabase.from('purchases').select('total').eq('project_id', project.id),
-          supabase.from('payments').select('amount').eq('project_id', project.id),
-          supabase.from('material_stock').select('current_stock,min_stock').eq('project_id', project.id),
-          supabase
-            .from('purchase_requests')
-            .select('id', { count: 'exact', head: true })
-            .eq('project_id', project.id)
-            .not('status', 'in', '(PURCHASED,CANCELLED)'),
-          supabase
-            .from('stock_movements')
-            .select('id,type,quantity,date,reference_number,location_used,created_at,materials(name,unit)')
-            .eq('project_id', project.id)
-            .order('created_at', { ascending: false })
-            .limit(6),
-        ]);
+    try {
+      const [purchasesRes, paymentsRes, materialsRes, requestsRes, movementsRes] = await Promise.all([
+        supabase.from('purchases').select('total').eq('project_id', project.id),
+        supabase.from('payments').select('amount').eq('project_id', project.id),
+        supabase.from('material_stock').select('current_stock,min_stock').eq('project_id', project.id),
+        supabase
+          .from('purchase_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('project_id', project.id)
+          .not('status', 'in', '(PURCHASED,CANCELLED)'),
+        supabase
+          .from('stock_movements')
+          .select('id,type,quantity,date,reference_number,location_used,created_at,materials(name,unit)')
+          .eq('project_id', project.id)
+          .order('created_at', { ascending: false })
+          .limit(6),
+      ]);
 
-        const responses = [purchasesRes, paymentsRes, materialsRes, requestsRes, movementsRes];
-        const firstError = responses.find((response) => response.error)?.error;
-        if (firstError) throw firstError;
+      const responses = [purchasesRes, paymentsRes, materialsRes, requestsRes, movementsRes];
+      const firstError = responses.find((response) => response.error)?.error;
+      if (firstError) throw firstError;
 
-        const totalPurchases = purchasesRes.data?.reduce((sum, row) => sum + (Number(row.total) || 0), 0) ?? 0;
-        const totalPaid = paymentsRes.data?.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) ?? 0;
-        const lowStock =
-          materialsRes.data?.filter((material) => Number(material.current_stock || 0) <= Number(material.min_stock || 0)).length ?? 0;
+      const totalPurchases = purchasesRes.data?.reduce((sum, row) => sum + (Number(row.total) || 0), 0) ?? 0;
+      const totalPaid = paymentsRes.data?.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) ?? 0;
+      const lowStock =
+        materialsRes.data?.filter((material) => Number(material.current_stock || 0) <= Number(material.min_stock || 0)).length ?? 0;
 
-        setStats({
-          totalPurchases,
-          totalPaid,
-          lowStock,
-          openRequests: requestsRes.count ?? 0,
-        });
-        setRecentMovements(movementsRes.data ?? []);
-      } catch (error) {
-        console.error('Dashboard data error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void fetchDashboard();
+      setStats({
+        totalPurchases,
+        totalPaid,
+        lowStock,
+        openRequests: requestsRes.count ?? 0,
+      });
+      setRecentMovements(movementsRes.data ?? []);
+    } catch (fetchError) {
+      console.error('Dashboard data error:', fetchError);
+      setStats(initialStats);
+      setRecentMovements([]);
+      setError(parseSupabaseError(fetchError, 'تعذر تحميل بيانات لوحة التحكم. تحقق من الاتصال ثم أعد المحاولة.'));
+    } finally {
+      setLoading(false);
+    }
   }, [project]);
+
+  useEffect(() => {
+    void fetchDashboard();
+  }, [fetchDashboard]);
 
   const remaining = Math.max(stats.totalPurchases - stats.totalPaid, 0);
   const paymentProgress = stats.totalPurchases > 0 ? Math.min((stats.totalPaid / stats.totalPurchases) * 100, 100) : 0;
-
-  const currencyFormatter = useMemo(
-    () =>
-      new Intl.NumberFormat('ar-OM', {
-        style: 'currency',
-        currency: project?.currency || 'OMR',
-        maximumFractionDigits: project?.currency === 'OMR' ? 3 : 2,
-      }),
-    [project?.currency]
-  );
+  const projectCurrency = project?.currency || 'EGP';
 
   const statCards = [
     {
       label: 'إجمالي أوامر الشراء',
-      value: currencyFormatter.format(stats.totalPurchases),
+      value: formatCurrency(stats.totalPurchases, projectCurrency),
       icon: ShoppingCart,
       iconClass: 'bg-sky-50 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300 ring-sky-100 dark:ring-sky-900',
       accentClass: 'from-sky-800 to-cyan-600',
     },
     {
       label: 'المدفوع للموردين',
-      value: currencyFormatter.format(stats.totalPaid),
+      value: formatCurrency(stats.totalPaid, projectCurrency),
       icon: WalletCards,
       iconClass: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 ring-emerald-100 dark:ring-emerald-900',
       accentClass: 'from-emerald-700 to-teal-500',
     },
     {
       label: 'الرصيد المستحق للموردين',
-      value: currencyFormatter.format(remaining),
+      value: formatCurrency(remaining, projectCurrency),
       icon: ArrowDownLeft,
       iconClass: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 ring-amber-100 dark:ring-amber-900',
       accentClass: 'from-amber-500 to-orange-500',
@@ -133,7 +137,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header matching rest of app */}
       <PageHeader
         title={`لوحة تشغيل مشروع ${project?.name || ''}`}
         description="نظرة شاملة وموحدة على الموقف المالي وتوريدات المواد وأحدث حركة المخزون الإنشائي."
@@ -159,9 +162,10 @@ export default function Dashboard() {
 
       {loading ? (
         <LoadingSkeleton rows={5} />
+      ) : error ? (
+        <ErrorState message={error} onRetry={() => void fetchDashboard()} />
       ) : (
         <>
-          {/* Standardized 4 KPI Stats Cards */}
           <section className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {statCards.map(({ label, value, icon: Icon, iconClass, accentClass }) => (
               <article key={label} className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs">
@@ -181,10 +185,8 @@ export default function Dashboard() {
             ))}
           </section>
 
-          {/* Consumption & Financial Analytics Chart Preview */}
           <AnalyticsCharts compact={true} />
 
-          {/* Lower Dashboard Grid (Recent Movements & Financial Progress) */}
           <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(20rem,0.75fr)]">
             <article className="overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
               <header className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-5 py-4">
@@ -264,11 +266,11 @@ export default function Dashboard() {
                 <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
                   <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-3">
                     <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">تم سداده</p>
-                    <p className="mt-1 truncate font-black text-emerald-950 dark:text-emerald-200">{currencyFormatter.format(stats.totalPaid)}</p>
+                    <p className="mt-1 truncate font-black text-emerald-950 dark:text-emerald-200">{formatCurrency(stats.totalPaid, projectCurrency)}</p>
                   </div>
                   <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-3">
                     <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400">متبقٍ</p>
-                    <p className="mt-1 truncate font-black text-amber-950 dark:text-amber-200">{currencyFormatter.format(remaining)}</p>
+                    <p className="mt-1 truncate font-black text-amber-950 dark:text-amber-200">{formatCurrency(remaining, projectCurrency)}</p>
                   </div>
                 </div>
               </article>
