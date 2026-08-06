@@ -6,11 +6,24 @@ import { parseSupabaseError } from '../lib/supabaseErrors';
 import { useToast } from './common/ToastProvider';
 import { PageHeader } from './common/PageHeader';
 import { Material } from '../types';
-import { Save, X, Plus, Trash2, ArrowRight, FileText } from 'lucide-react';
+import { Save, Plus, Trash2, FileText } from 'lucide-react';
 
 interface RequestItemInput {
   material_id: string;
   quantity: string;
+}
+
+interface SubmissionAttempt {
+  key: string;
+  fingerprint: string;
+}
+
+function createAttemptKey(): string {
+  const randomPart =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `request-${randomPart}`;
 }
 
 export default function CreatePurchaseRequest() {
@@ -20,6 +33,7 @@ export default function CreatePurchaseRequest() {
 
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submissionAttempt, setSubmissionAttempt] = useState<SubmissionAttempt | null>(null);
 
   const [form, setForm] = useState({
     request_number: `PR-${Date.now().toString().slice(-5)}`,
@@ -38,18 +52,18 @@ export default function CreatePurchaseRequest() {
       try {
         const { data, error } = await supabase
           .from('materials')
-          .select('*')
+          .select('id, project_id, name, category, unit, min_stock, notes, created_at, updated_at')
           .eq('project_id', project.id)
           .order('name');
-        if (!error && data) {
-          setMaterials(data as Material[]);
-        }
-      } catch (e) {
-        console.error(e);
+        if (error) throw error;
+        setMaterials((data as Material[]) || []);
+      } catch (error) {
+        console.error(error);
+        toast.error(parseSupabaseError(error, 'تعذر تحميل قائمة المواد'));
       }
     };
     void fetchMaterials();
-  }, [project]);
+  }, [project, toast]);
 
   const handleAddItem = () => {
     setItems((prev) => [...prev, { material_id: '', quantity: '1' }]);
@@ -60,8 +74,8 @@ export default function CreatePurchaseRequest() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!supabase || !project) return;
 
     if (!form.reason.trim()) {
@@ -69,65 +83,52 @@ export default function CreatePurchaseRequest() {
       return;
     }
 
-    const validItems = [];
+    const validItems: { material_id: string; quantity: number }[] = [];
     for (const item of items) {
       if (!item.material_id) {
         toast.error('يرجى اختيار المادة لكل البنود');
         return;
       }
-      const qty = Number(item.quantity);
-      if (isNaN(qty) || qty <= 0) {
+      const quantity = Number(item.quantity);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
         toast.error('الكمية المطلوبة يجب أن تكون أكبر من صفر');
         return;
       }
-      validItems.push({
-        material_id: item.material_id,
-        quantity: qty,
-      });
+      validItems.push({ material_id: item.material_id, quantity });
     }
 
+    const payload = {
+      p_project_id: project.id,
+      p_request_number: form.request_number.trim(),
+      p_request_date: form.date,
+      p_reason: form.reason.trim(),
+      p_priority: form.priority,
+      p_needed_date: form.needed_date || null,
+      p_notes: form.notes.trim() || null,
+      p_items: validItems,
+    };
+    const fingerprint = JSON.stringify(payload);
+    const attempt =
+      submissionAttempt?.fingerprint === fingerprint
+        ? submissionAttempt
+        : { key: createAttemptKey(), fingerprint };
+
+    if (attempt !== submissionAttempt) setSubmissionAttempt(attempt);
     setLoading(true);
 
     try {
-      // 1. Create Purchase Request header
-      const { data: requestData, error: reqError } = await supabase
-        .from('purchase_requests')
-        .insert([
-          {
-            project_id: project.id,
-            request_number: form.request_number.trim(),
-            date: form.date,
-            reason: form.reason.trim(),
-            priority: form.priority,
-            needed_date: form.needed_date || null,
-            notes: form.notes.trim() || null,
-            status: 'REQUESTED',
-          },
-        ])
-        .select()
-        .single();
+      const { data: requestId, error } = await supabase.rpc('create_purchase_request_atomic', {
+        ...payload,
+        p_idempotency_key: attempt.key,
+      });
+      if (error) throw error;
+      if (!requestId) throw new Error('لم تُرجع قاعدة البيانات رقم طلب الشراء');
 
-      if (reqError) throw reqError;
-
-      // 2. Create Purchase Request items
-      const requestItems = validItems.map((item) => ({
-        request_id: requestData.id,
-        material_id: item.material_id,
-        quantity: item.quantity,
-      }));
-
-      const { error: itemsError } = await supabase.from('purchase_request_items').insert(requestItems);
-
-      if (itemsError) {
-        // Rollback request header if items insertion failed
-        await supabase.from('purchase_requests').delete().eq('id', requestData.id);
-        throw itemsError;
-      }
-
-      toast.success(`تم إنشاء طلب الشراء بنجاح (${requestData.request_number})`);
-      navigate(`/requests/${requestData.id}`);
-    } catch (err: any) {
-      toast.error(parseSupabaseError(err, 'حدث خطأ أثناء حفظ طلب الشراء'));
+      setSubmissionAttempt(null);
+      toast.success(`تم إنشاء طلب الشراء بنجاح (${form.request_number.trim()})`);
+      navigate(`/requests/${requestId}`);
+    } catch (error) {
+      toast.error(parseSupabaseError(error, 'حدث خطأ أثناء حفظ طلب الشراء'));
     } finally {
       setLoading(false);
     }
@@ -143,7 +144,6 @@ export default function CreatePurchaseRequest() {
       />
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Basic Info */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">البيانات الأساسية للطلب</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
@@ -183,7 +183,7 @@ export default function CreatePurchaseRequest() {
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">الأولوية *</label>
               <select
                 value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: e.target.value as any })}
+                onChange={(e) => setForm({ ...form, priority: e.target.value as 'NORMAL' | 'URGENT' })}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               >
                 <option value="NORMAL">عادي (اعتيادي)</option>
@@ -196,7 +196,7 @@ export default function CreatePurchaseRequest() {
               <input
                 type="text"
                 required
-                placeholder="مثال: توريد أسمنت صبة صقف الدور الأول"
+                placeholder="مثال: توريد أسمنت صبة سقف الدور الأول"
                 value={form.reason}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
@@ -205,7 +205,6 @@ export default function CreatePurchaseRequest() {
           </div>
         </div>
 
-        {/* Required Materials */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">المواد المطلوبة</h3>
@@ -220,7 +219,7 @@ export default function CreatePurchaseRequest() {
 
           <div className="space-y-3">
             {items.map((item, index) => {
-              const selectedMat = materials.find((m) => m.id === item.material_id);
+              const selectedMaterial = materials.find((material) => material.id === item.material_id);
               return (
                 <div key={index} className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col sm:flex-row gap-3 items-end">
                   <div className="w-full sm:flex-1">
@@ -236,9 +235,9 @@ export default function CreatePurchaseRequest() {
                       className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     >
                       <option value="">اختر مادة من الكتالوج...</option>
-                      {materials.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.unit})
+                      {materials.map((material) => (
+                        <option key={material.id} value={material.id}>
+                          {material.name} ({material.unit})
                         </option>
                       ))}
                     </select>
@@ -248,8 +247,8 @@ export default function CreatePurchaseRequest() {
                     <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">الكمية المطلوبة *</label>
                     <input
                       type="number"
-                      step="0.01"
-                      min="0.01"
+                      step="0.001"
+                      min="0.001"
                       required
                       value={item.quantity}
                       onChange={(e) => {
@@ -261,9 +260,9 @@ export default function CreatePurchaseRequest() {
                     />
                   </div>
 
-                  {selectedMat && (
+                  {selectedMaterial && (
                     <div className="text-xs text-slate-500 dark:text-slate-400 py-2 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg whitespace-nowrap">
-                      الوحدة: <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMat.unit}</span>
+                      الوحدة: <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMaterial.unit}</span>
                     </div>
                   )}
 
@@ -272,6 +271,7 @@ export default function CreatePurchaseRequest() {
                       type="button"
                       onClick={() => handleRemoveItem(index)}
                       className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                      aria-label="حذف البند"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -282,7 +282,6 @@ export default function CreatePurchaseRequest() {
           </div>
         </div>
 
-        {/* Notes */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">ملاحظات إضافية</label>
           <textarea
@@ -291,10 +290,9 @@ export default function CreatePurchaseRequest() {
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
             placeholder="أية شروط أو ملاحظات تسليم موقعية..."
             className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-          ></textarea>
+          />
         </div>
 
-        {/* Submit Bar */}
         <div className="flex justify-end gap-3 pt-2">
           <button
             type="button"
