@@ -31,12 +31,13 @@ export interface MaterialStock {
   material_id: string;
   project_id: string;
   name: string;
-  category?: string | null;
   min_stock: number;
   unit: string;
   total_in: number;
   total_out: number;
   current_stock: number;
+  category: string | null;
+  notes: string | null;
 }
 
 export interface Supplier {
