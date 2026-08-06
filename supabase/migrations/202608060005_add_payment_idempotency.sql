@@ -47,6 +47,7 @@ DECLARE
   v_payment_id uuid;
   v_total numeric(18,2);
   v_paid numeric(18,2);
+  v_amount numeric(18,2);
   v_existing public.payments%ROWTYPE;
   v_reference varchar(100);
   v_notes text;
@@ -57,7 +58,12 @@ BEGIN
     RAISE EXCEPTION 'unauthorized';
   END IF;
 
-  IF p_amount IS NULL OR p_amount <= 0 THEN
+  IF p_amount IS NULL THEN
+    RAISE EXCEPTION 'payment amount must be positive';
+  END IF;
+
+  v_amount := round(p_amount, 2)::numeric(18,2);
+  IF v_amount <= 0 THEN
     RAISE EXCEPTION 'payment amount must be positive';
   END IF;
 
@@ -70,9 +76,17 @@ BEGIN
     RAISE EXCEPTION 'invalid payment method';
   END IF;
 
+  IF length(btrim(coalesce(p_idempotency_key, ''))) > 100 THEN
+    RAISE EXCEPTION 'idempotency key is too long';
+  END IF;
+
   v_key := btrim(coalesce(p_idempotency_key, ''));
   IF v_key = '' THEN
     RAISE EXCEPTION 'idempotency key required';
+  END IF;
+
+  IF length(btrim(coalesce(p_reference_number, ''))) > 100 THEN
+    RAISE EXCEPTION 'payment reference is too long';
   END IF;
 
   v_reference := nullif(btrim(p_reference_number), '');
@@ -86,7 +100,7 @@ BEGIN
 
   IF FOUND THEN
     IF v_existing.purchase_id IS DISTINCT FROM p_purchase_id
-       OR v_existing.amount IS DISTINCT FROM p_amount::numeric(18,2)
+       OR v_existing.amount IS DISTINCT FROM v_amount
        OR v_existing.date IS DISTINCT FROM p_date
        OR v_existing.method IS DISTINCT FROM v_method
        OR v_existing.reference_number IS DISTINCT FROM v_reference
@@ -116,7 +130,7 @@ BEGIN
 
   IF FOUND THEN
     IF v_existing.purchase_id IS DISTINCT FROM p_purchase_id
-       OR v_existing.amount IS DISTINCT FROM p_amount::numeric(18,2)
+       OR v_existing.amount IS DISTINCT FROM v_amount
        OR v_existing.date IS DISTINCT FROM p_date
        OR v_existing.method IS DISTINCT FROM v_method
        OR v_existing.reference_number IS DISTINCT FROM v_reference
@@ -131,7 +145,7 @@ BEGIN
   FROM public.payments
   WHERE purchase_id = p_purchase_id;
 
-  IF v_paid + p_amount > v_total THEN
+  IF v_paid + v_amount > v_total THEN
     RAISE EXCEPTION 'Payment amount exceeds remaining balance. Remaining: %', v_total - v_paid;
   END IF;
 
@@ -149,7 +163,7 @@ BEGIN
   VALUES (
     p_project_id,
     p_purchase_id,
-    p_amount,
+    v_amount,
     p_date,
     v_method,
     v_reference,
