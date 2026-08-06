@@ -2,82 +2,71 @@
 
 Product: LENA SUPPLY  
 Production project ref: `bsrshhgjtnrvsckeqsmg`  
-Repository base reviewed: `2fa47595d9244a43928b585763b3c804acf9499e`
+Verified: `2026-08-06`  
+Release branch: `release/lena-supply-hardening-continuation-20260806`
 
-> Live verification was not completed in this continuation because the Supabase connector became unavailable during execution. No claim below treats a Git file as proof that Production has been migrated.
+This ledger records the live production state verified through the Supabase management connection. Repository files alone are not treated as proof of application.
 
-| Migration | Expected objects | Git state | Live state | Required action |
-|---|---|---:|---:|---|
-| `202608060001_make_project_setup_idempotent.sql` | `public.upsert_existing_project_on_insert()` and `projects_idempotent_insert` trigger on `public.projects` | Present | Unverified in this run | Inspect function, trigger name, grants and retry behavior on project `bsrshhgjtnrvsckeqsmg` |
-| `202608060002_add_stock_issues_and_rpc.sql` | `public.stock_issues`, `public.stock_issue_items`, RLS policies and `public.issue_stock(...)` | Present | Unverified in this run | Apply only if absent, then verify tables, policies, grants and function signature |
-| `202608060003_harden_stock_issue_rpc.sql` | strict payload validation, deterministic material locking, unique issue-item material index, non-null `created_by`, hardened grants | Added on release branch | Not applied | Review and apply after migration 002, then run stock issue SQL assertions |
+| Repository migration | Live migration version | Live state | Verification |
+|---|---:|---:|---|
+| `202608060001_make_project_setup_idempotent.sql` | `20260805231003` (`make_project_setup_idempotent`) | Applied | Function `public.upsert_existing_project_on_insert()` exists and trigger `projects_idempotent_insert` is enabled |
+| `202608060002_add_stock_issues_and_rpc.sql` | `20260806102907` (`add_stock_issues_and_rpc`) | Applied | Stock issue tables, RLS, indexes and initial RPC were created |
+| `202608060003_harden_stock_issue_rpc.sql` | `20260806102938` (`harden_stock_issue_rpc`) | Applied | Strict validation, deterministic locks, non-null creator, unique issue/material index and hardened grants are active |
 
-## Required live verification query
+## Live release assertions
 
-Run against `bsrshhgjtnrvsckeqsmg` before merge or release:
+The following checks passed against project `bsrshhgjtnrvsckeqsmg`:
 
-```sql
-select
-  to_regclass('public.stock_issues') is not null as stock_issues_exists,
-  to_regclass('public.stock_issue_items') is not null as stock_issue_items_exists,
-  to_regprocedure('public.issue_stock(uuid,character varying,date,character varying,character varying,character varying,text,jsonb,character varying)') is not null as issue_stock_exists,
-  to_regprocedure('public.upsert_existing_project_on_insert()') is not null as onboarding_function_exists;
+- required release tables and functions exist;
+- `projects_idempotent_insert` exists and is enabled;
+- RLS is enabled on both stock issue tables;
+- `stock_issues.created_by` is `NOT NULL`;
+- `issue_stock(...)` is `SECURITY DEFINER` with `search_path=public, pg_temp`;
+- `anon` cannot execute `issue_stock(...)`;
+- `authenticated` can execute `issue_stock(...)`;
+- the unique issue/material index exists.
 
-select t.tgname, t.tgenabled
-from pg_trigger t
-join pg_class c on c.oid = t.tgrelid
-join pg_namespace n on n.oid = c.relnamespace
-where n.nspname = 'public'
-  and c.relname = 'projects'
-  and not t.tgisinternal;
+Result:
 
-select
-  n.nspname,
-  p.proname,
-  p.prosecdef,
-  pg_get_function_identity_arguments(p.oid) as arguments,
-  p.proconfig,
-  has_function_privilege('anon', p.oid, 'EXECUTE') as anon_execute,
-  has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_execute
-from pg_proc p
-join pg_namespace n on n.oid = p.pronamespace
-where n.nspname = 'public'
-  and p.proname in (
-    'upsert_existing_project_on_insert',
-    'receive_goods',
-    'register_payment',
-    'issue_stock',
-    'validate_stock_movement'
-  )
-order by p.proname;
+```text
+PASS: live release objects, trigger, RLS and RPC grants are valid
 ```
 
-## Release assertions
+## Stock issue transactional assertions
 
-After applying migrations in order, run:
+The test ran inside a transaction and ended with `ROLLBACK`, so production demo data was not changed. It verified:
 
-- `supabase/tests/release_assertions.sql`
-- `supabase/tests/stock_issues.test.sql`
-
-The stock issue assertions now cover:
-
-- multiple materials;
+- multiple materials in one issue;
 - duplicate material aggregation;
-- idempotent retry;
-- empty and malformed payload rejection;
+- idempotent retry returning the same issue;
+- empty payload rejection;
 - cross-project material rejection;
 - over-issue rejection;
-- stock preservation after failed operations.
+- unchanged stock after failed operations.
+
+Result:
+
+```text
+PASS: stock issue atomicity, aggregation, idempotency, isolation and balance protection
+```
+
+## Advisor review
+
+Security Advisor reports the three authenticated operational RPCs (`receive_goods`, `register_payment`, `issue_stock`) because they intentionally use `SECURITY DEFINER`. Each function verifies `auth.uid()`, checks project ownership and fixes its `search_path`; `anon` execution is revoked. These warnings are therefore reviewed and accepted for the RPC architecture.
+
+The remaining account-level warning is leaked-password protection being disabled. It must be enabled in Supabase Auth settings before public account registration is promoted beyond the controlled MVP.
+
+Performance Advisor reports only informational unused-index notices. The database is new and low-volume, so release-critical indexes are retained until real query statistics exist.
 
 ## Migration rules
 
-- Never edit an already-applied migration to change Production behavior.
+- Never edit an already-applied migration to change production behavior.
 - Add a new timestamped correction migration.
-- Never execute the whole `schema.sql` against Production as a shortcut.
+- Never execute the whole `schema.sql` against production as a shortcut.
 - Apply DDL through the migration mechanism, not an ad-hoc client query.
-- Record the live migration version and verification timestamp after application.
-- Re-run Security and Performance Advisors after every applied DDL change.
+- Record the live migration version and verification date after application.
+- Re-run Security and Performance Advisors after every DDL change.
 
-## Current release blocker
+## Current database gate
 
-`202608060003_harden_stock_issue_rpc.sql` is committed but not proven applied live. The release remains database-blocked until the live object query and SQL assertions pass on `bsrshhgjtnrvsckeqsmg`.
+The database migration and SQL assertion gate is complete. Remaining merge gates are repository CI and deployment verification.
