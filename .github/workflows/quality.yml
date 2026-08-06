@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -16,9 +16,24 @@ jobs:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Normalize legacy currency fallbacks on this PR
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          node scripts/normalize-currency-source.mjs
+          if git diff --quiet; then
+            echo "No source normalization required"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src
+            git commit -m "Normalize all currency fallbacks to EGP"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
       - run: npm ci
       - name: Verify frontend, RPC and route contracts
         run: npm run test:contracts
