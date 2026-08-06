@@ -28,6 +28,14 @@ import {
   ShoppingCart,
 } from 'lucide-react';
 
+function createAttemptKey(prefix: 'pay' | 'rec'): string {
+  const randomPart =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${prefix}-${randomPart}`;
+}
+
 export default function PurchaseDetails() {
   const { id } = useParams<{ id: string }>();
   const { project } = useProject();
@@ -46,6 +54,9 @@ export default function PurchaseDetails() {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
+  const [paymentIdempotencyKey, setPaymentIdempotencyKey] = useState(() => createAttemptKey('pay'));
+  const [receiptIdempotencyKey, setReceiptIdempotencyKey] = useState(() => createAttemptKey('rec'));
+  const [receiptReference, setReceiptReference] = useState('');
 
   const [receiptForm, setReceiptForm] = useState<
     { id: string; material_id: string; max_qty: number; receive_qty: string }[]
@@ -59,7 +70,7 @@ export default function PurchaseDetails() {
     notes: '',
   });
 
-  const currency = project?.currency || 'SAR';
+  const currency = project?.currency || 'EGP';
 
   const fetchData = useCallback(async () => {
     if (!supabase || !project || !id) return;
@@ -77,6 +88,7 @@ export default function PurchaseDetails() {
       if (purRes.error) throw purRes.error;
       if (itemsRes.error) throw itemsRes.error;
       if (payRes.error) throw payRes.error;
+      if (grRes.error) throw grRes.error;
 
       setPurchase(purRes.data as Purchase);
       setItems((itemsRes.data as any) || []);
@@ -126,7 +138,17 @@ export default function PurchaseDetails() {
   const remaining = Math.max(0, Number(purchase.total) - totalPaid);
   const isFullyPaid = remaining <= 0;
 
-  // Add Payment handler with register_payment RPC
+  const openPaymentModal = () => {
+    setPaymentIdempotencyKey(createAttemptKey('pay'));
+    setShowPaymentModal(true);
+  };
+
+  const openReceiptModal = () => {
+    setReceiptIdempotencyKey(createAttemptKey('rec'));
+    setReceiptReference(`GR-${purchase.purchase_number.replace('PO-', '')}-${Date.now().toString().slice(-6)}`);
+    setShowReceiptModal(true);
+  };
+
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || !project) return;
@@ -152,6 +174,7 @@ export default function PurchaseDetails() {
         p_method: paymentForm.method,
         p_reference_number: paymentForm.reference_number.trim() || null,
         p_notes: paymentForm.notes.trim() || null,
+        p_idempotency_key: paymentIdempotencyKey,
       });
 
       if (payErr) {
@@ -161,6 +184,7 @@ export default function PurchaseDetails() {
 
       toast.success(`تم تسجيل دفعة بقيمة ${formatCurrency(amount, currency)} بنجاح`);
       setShowPaymentModal(false);
+      setPaymentIdempotencyKey(createAttemptKey('pay'));
       setPaymentForm({
         amount: '',
         date: new Date().toISOString().split('T')[0],
@@ -176,7 +200,6 @@ export default function PurchaseDetails() {
     }
   };
 
-  // Receive Items handler with receive_goods RPC
   const handleReceiveItems = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || !project) return;
@@ -203,8 +226,8 @@ export default function PurchaseDetails() {
 
     setSubmittingReceipt(true);
     const receiptDate = new Date().toISOString().split('T')[0];
-    const receiptRef = `GR-${purchase.purchase_number.replace('PO-', '')}-${Date.now().toString().slice(-4)}`;
-    const idempotencyKey = `rec-${purchase.id}-${Date.now()}`;
+    const receiptRef = receiptReference || `GR-${purchase.purchase_number.replace('PO-', '')}-${Date.now().toString().slice(-6)}`;
+    const idempotencyKey = receiptIdempotencyKey || createAttemptKey('rec');
 
     const payloadItems = validItemsToReceive.map((item) => ({
       purchase_item_id: item.purchase_item_id,
@@ -229,6 +252,8 @@ export default function PurchaseDetails() {
 
       toast.success(`تم إثبات استلام المواد بنجاح (سند: ${receiptRef})`);
       setShowReceiptModal(false);
+      setReceiptIdempotencyKey(createAttemptKey('rec'));
+      setReceiptReference('');
       void fetchData();
     } catch (err: any) {
       toast.error(parseSupabaseError(err));
@@ -239,7 +264,6 @@ export default function PurchaseDetails() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto print:space-y-4 print:p-0">
-      {/* Printable Header Branding */}
       <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-6">
         <div className="flex justify-between items-start">
           <div>
@@ -254,7 +278,6 @@ export default function PurchaseDetails() {
         </div>
       </div>
 
-      {/* Standardized PageHeader */}
       <PageHeader
         title={purchase.purchase_number}
         description={`المورد: ${purchase.suppliers?.name || 'غير محدد'} • تاريخ أمر الشراء: ${formatDate(purchase.date)}`}
@@ -278,7 +301,7 @@ export default function PurchaseDetails() {
 
             {purchase.receipt_status !== 'FULL' && (
               <button
-                onClick={() => setShowReceiptModal(true)}
+                onClick={openReceiptModal}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-2xs"
               >
                 <PackageCheck className="w-4 h-4" />
@@ -288,7 +311,7 @@ export default function PurchaseDetails() {
 
             {!isFullyPaid && (
               <button
-                onClick={() => setShowPaymentModal(true)}
+                onClick={openPaymentModal}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors shadow-2xs"
               >
                 <Banknote className="w-4 h-4" />
@@ -300,7 +323,6 @@ export default function PurchaseDetails() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block print:space-y-4">
-        {/* Left Column (Items & Financial breakdown) */}
         <div className="lg:col-span-2 space-y-6 print:space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:shadow-none">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
@@ -333,7 +355,6 @@ export default function PurchaseDetails() {
               })}
             </div>
 
-            {/* Financial breakdown */}
             <div className="bg-slate-50 p-5 border-t border-slate-200 space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-600">المجموع الفرعي:</span>
@@ -364,7 +385,6 @@ export default function PurchaseDetails() {
             </div>
           </div>
 
-          {/* Goods Receipt History Timeline */}
           {goodsReceipts.length > 0 && (
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4 print:shadow-none print:p-4">
               <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
@@ -393,15 +413,12 @@ export default function PurchaseDetails() {
             </div>
           )}
 
-          {/* Attachments Section (Hidden on Print) */}
           <div className="print:hidden">
             <Attachments entityType="PURCHASE" entityId={purchase.id} />
           </div>
         </div>
 
-        {/* Right Column (Supplier Details & Payments Ledger) */}
         <div className="space-y-6 print:space-y-4 print:mt-4">
-          {/* Supplier Info */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-3 print:shadow-none print:p-4">
             <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-slate-500" /> بيانات المورد
@@ -417,13 +434,12 @@ export default function PurchaseDetails() {
             </div>
           </div>
 
-          {/* Financial Balances & Payments */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:shadow-none">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900">سجل المدفوعات</h3>
               {!isFullyPaid && (
                 <button
-                  onClick={() => setShowPaymentModal(true)}
+                  onClick={openPaymentModal}
                   className="text-xs font-bold text-sky-600 hover:text-sky-700 print:hidden"
                 >
                   + إضافة دفعة
@@ -470,14 +486,12 @@ export default function PurchaseDetails() {
         </div>
       </div>
 
-      {/* Printable Signatures Block */}
       <div className="hidden print:grid grid-cols-3 gap-6 pt-12 text-center text-xs text-slate-700">
         <div className="border-t border-slate-300 pt-2 font-bold">توقيع المستلم / المورد</div>
         <div className="border-t border-slate-300 pt-2 font-bold">الحسابات والمراجعة</div>
         <div className="border-t border-slate-300 pt-2 font-bold">اعتماد مدير المشروع</div>
       </div>
 
-      {/* Modal for Receiving Items */}
       {showReceiptModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
@@ -560,7 +574,6 @@ export default function PurchaseDetails() {
         </div>
       )}
 
-      {/* Modal for Adding Payment */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
@@ -626,6 +639,7 @@ export default function PurchaseDetails() {
                     <label className="block font-semibold text-slate-700 mb-1">رقم المرجع / الحوالة</label>
                     <input
                       type="text"
+                      maxLength={100}
                       placeholder="مثال: REF-99401"
                       value={paymentForm.reference_number}
                       onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
@@ -657,7 +671,6 @@ export default function PurchaseDetails() {
         </div>
       )}
 
-      {/* Printable A4 Modal */}
       {purchase && (
         <PrintDocumentModal
           isOpen={showPrintModal}
