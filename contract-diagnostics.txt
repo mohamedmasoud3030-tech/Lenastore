@@ -1,0 +1,6 @@
+
+> react-example@0.0.0 test:contracts
+> node scripts/verify-contracts.mjs
+
+Contract verification passed: 54 source files, 15 RPCs, protected routes, EGP currency and SQL flow coverage.
+exit_code=0
