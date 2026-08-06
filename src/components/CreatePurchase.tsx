@@ -7,12 +7,25 @@ import { parseSupabaseError } from '../lib/supabaseErrors';
 import { useToast } from './common/ToastProvider';
 import { PageHeader } from './common/PageHeader';
 import { formatCurrency } from '../lib/formatters';
-import { Save, X, Plus, Trash2, ArrowRight, ShoppingCart } from 'lucide-react';
+import { Save, Plus, Trash2, ShoppingCart } from 'lucide-react';
 
 interface PurchaseItemInput {
   material_id: string;
   quantity: string;
   unit_price: string;
+}
+
+interface SubmissionAttempt {
+  key: string;
+  fingerprint: string;
+}
+
+function createAttemptKey(): string {
+  const randomPart =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `purchase-${randomPart}`;
 }
 
 export default function CreatePurchase() {
@@ -26,8 +39,9 @@ export default function CreatePurchase() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submissionAttempt, setSubmissionAttempt] = useState<SubmissionAttempt | null>(null);
 
-  const currency = project?.currency || 'SAR';
+  const currency = project?.currency || 'EGP';
 
   const [form, setForm] = useState({
     purchase_number: `PO-${Date.now().toString().slice(-5)}`,
@@ -42,9 +56,9 @@ export default function CreatePurchase() {
   });
 
   const initialItems: PurchaseItemInput[] = requestItems
-    ? requestItems.map((ri: any) => ({
-        material_id: ri.material_id,
-        quantity: String(ri.quantity || 1),
+    ? requestItems.map((requestItem: any) => ({
+        material_id: requestItem.material_id,
+        quantity: String(requestItem.quantity || 1),
         unit_price: '0',
       }))
     : [{ material_id: '', quantity: '1', unit_price: '0' }];
@@ -55,43 +69,53 @@ export default function CreatePurchase() {
     if (!supabase || !project) return;
     const fetchData = async () => {
       try {
-        const [supRes, matRes] = await Promise.all([
-          supabase.from('suppliers').select('*').eq('project_id', project.id).order('name'),
-          supabase.from('materials').select('*').eq('project_id', project.id).order('name'),
+        const [supplierResult, materialResult] = await Promise.all([
+          supabase
+            .from('suppliers')
+            .select('id, project_id, name, company, phone, tax_id, notes, created_at, updated_at')
+            .eq('project_id', project.id)
+            .order('name'),
+          supabase
+            .from('materials')
+            .select('id, project_id, name, category, unit, min_stock, notes, created_at, updated_at')
+            .eq('project_id', project.id)
+            .order('name'),
         ]);
 
-        if (!supRes.error && supRes.data) setSuppliers(supRes.data as Supplier[]);
-        if (!matRes.error && matRes.data) setMaterials(matRes.data as Material[]);
-      } catch (e) {
-        console.error(e);
+        if (supplierResult.error) throw supplierResult.error;
+        if (materialResult.error) throw materialResult.error;
+        setSuppliers((supplierResult.data as Supplier[]) || []);
+        setMaterials((materialResult.data as Material[]) || []);
+      } catch (error) {
+        console.error(error);
+        toast.error(parseSupabaseError(error, 'تعذر تحميل الموردين والمواد'));
       }
     };
     void fetchData();
-  }, [project]);
+  }, [project, toast]);
 
   const handleAddItem = () => {
-    setItems((prev) => [...prev, { material_id: '', quantity: '1', unit_price: '0' }]);
+    setItems((previous) => [...previous, { material_id: '', quantity: '1', unit_price: '0' }]);
   };
 
   const handleRemoveItem = (index: number) => {
     if (items.length <= 1) return;
-    setItems((prev) => prev.filter((_, i) => i !== index));
+    setItems((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
   };
 
-  // Financial summary
-  const subtotal = items.reduce((acc, item) => {
-    const q = Number(item.quantity) || 0;
-    const p = Number(item.unit_price) || 0;
-    return acc + q * p;
+  const subtotal = items.reduce((sum, item) => {
+    const quantity = Number(item.quantity) || 0;
+    const unitPrice = Number(item.unit_price) || 0;
+    return sum + Math.round(quantity * unitPrice * 100) / 100;
   }, 0);
 
-  const discountVal = Number(form.discount) || 0;
-  const taxVal = Number(form.tax) || 0;
-  const transportVal = Number(form.transport_cost) || 0;
-  const total = Math.max(0, subtotal - discountVal + taxVal + transportVal);
+  const discountValue = Number(form.discount) || 0;
+  const taxValue = Number(form.tax) || 0;
+  const transportValue = Number(form.transport_cost) || 0;
+  const total = Math.round((subtotal - discountValue + taxValue + transportValue) * 100) / 100;
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!supabase || !project) return;
 
     if (!form.supplier_id) {
@@ -99,85 +123,73 @@ export default function CreatePurchase() {
       return;
     }
 
-    const validItems = [];
+    const validItems: { material_id: string; quantity: number; unit_price: number }[] = [];
+    const selectedMaterialIds = new Set<string>();
+
     for (const item of items) {
       if (!item.material_id) {
         toast.error('يرجى اختيار المادة لجميع البنود');
         return;
       }
-      const qty = Number(item.quantity);
-      const price = Number(item.unit_price);
-      if (isNaN(qty) || qty <= 0) {
+      if (selectedMaterialIds.has(item.material_id)) {
+        toast.error('لا يمكن تكرار نفس المادة داخل أمر الشراء');
+        return;
+      }
+      selectedMaterialIds.add(item.material_id);
+
+      const quantity = Number(item.quantity);
+      const unitPrice = Number(item.unit_price);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
         toast.error('الكمية يجب أن تكون أكبر من صفر');
         return;
       }
-      if (isNaN(price) || price < 0) {
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
         toast.error('سعر الوحدة يجب أن يكون صفرًا أو أكثر');
         return;
       }
-      validItems.push({
-        material_id: item.material_id,
-        quantity: qty,
-        unit_price: price,
-        total: qty * price,
-      });
+      validItems.push({ material_id: item.material_id, quantity, unit_price: unitPrice });
     }
 
+    if (discountValue < 0 || taxValue < 0 || transportValue < 0 || total < 0) {
+      toast.error('القيم المالية غير صحيحة أو ينتج عنها إجمالي سالب');
+      return;
+    }
+
+    const payload = {
+      p_project_id: project.id,
+      p_request_id: form.request_id || null,
+      p_purchase_number: form.purchase_number.trim(),
+      p_supplier_id: form.supplier_id,
+      p_purchase_date: form.date,
+      p_invoice_number: form.invoice_number.trim() || null,
+      p_discount: discountValue,
+      p_tax: taxValue,
+      p_transport_cost: transportValue,
+      p_notes: form.notes.trim() || null,
+      p_items: validItems,
+    };
+    const fingerprint = JSON.stringify(payload);
+    const attempt =
+      submissionAttempt?.fingerprint === fingerprint
+        ? submissionAttempt
+        : { key: createAttemptKey(), fingerprint };
+
+    if (attempt !== submissionAttempt) setSubmissionAttempt(attempt);
     setLoading(true);
 
     try {
-      // 1. Insert Purchase Header
-      const { data: purchaseData, error: purchaseError } = await supabase
-        .from('purchases')
-        .insert([
-          {
-            project_id: project.id,
-            request_id: form.request_id || null,
-            purchase_number: form.purchase_number.trim(),
-            supplier_id: form.supplier_id,
-            date: form.date,
-            invoice_number: form.invoice_number.trim() || null,
-            subtotal,
-            discount: discountVal,
-            tax: taxVal,
-            transport_cost: transportVal,
-            total,
-            notes: form.notes.trim() || null,
-            receipt_status: 'UNRECEIVED',
-          },
-        ])
-        .select()
-        .single();
+      const { data: purchaseId, error } = await supabase.rpc('create_purchase_atomic', {
+        ...payload,
+        p_idempotency_key: attempt.key,
+      });
+      if (error) throw error;
+      if (!purchaseId) throw new Error('لم تُرجع قاعدة البيانات رقم أمر الشراء');
 
-      if (purchaseError) throw purchaseError;
-
-      // 2. Insert Purchase Items
-      const purchaseItemsPayload = validItems.map((item) => ({
-        purchase_id: purchaseData.id,
-        material_id: item.material_id,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total: item.total,
-        received_quantity: 0,
-      }));
-
-      const { error: itemsError } = await supabase.from('purchase_items').insert(purchaseItemsPayload);
-
-      if (itemsError) {
-        // Rollback purchase header
-        await supabase.from('purchases').delete().eq('id', purchaseData.id);
-        throw itemsError;
-      }
-
-      // 3. Update related purchase request status if applicable
-      if (form.request_id) {
-        await supabase.from('purchase_requests').update({ status: 'PURCHASED' }).eq('id', form.request_id);
-      }
-
-      toast.success(`تم إنشاء امر الشراء بنجاح (${purchaseData.purchase_number})`);
-      navigate(`/purchases/${purchaseData.id}`);
-    } catch (err: any) {
-      toast.error(parseSupabaseError(err, 'حدث خطأ أثناء حفظ امر الشراء'));
+      setSubmissionAttempt(null);
+      toast.success(`تم إنشاء أمر الشراء بنجاح (${form.purchase_number.trim()})`);
+      navigate(`/purchases/${purchaseId}`);
+    } catch (error) {
+      toast.error(parseSupabaseError(error, 'حدث خطأ أثناء حفظ أمر الشراء'));
     } finally {
       setLoading(false);
     }
@@ -193,7 +205,6 @@ export default function CreatePurchase() {
       />
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Header Metadata */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-4">
           <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">البيانات الأساسية للطلب</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
@@ -228,9 +239,9 @@ export default function CreatePurchase() {
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               >
                 <option value="">اختر مورد...</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} {s.company ? `(${s.company})` : ''}
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name} {supplier.company ? `(${supplier.company})` : ''}
                   </option>
                 ))}
               </select>
@@ -249,7 +260,6 @@ export default function CreatePurchase() {
           </div>
         </div>
 
-        {/* Materials & Unit Prices */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">بنود التوريد والأسعار</h3>
@@ -264,9 +274,9 @@ export default function CreatePurchase() {
 
           <div className="space-y-3">
             {items.map((item, index) => {
-              const q = Number(item.quantity) || 0;
-              const p = Number(item.unit_price) || 0;
-              const itemTotal = q * p;
+              const quantity = Number(item.quantity) || 0;
+              const unitPrice = Number(item.unit_price) || 0;
+              const itemTotal = Math.round(quantity * unitPrice * 100) / 100;
 
               return (
                 <div key={index} className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/70 rounded-xl flex flex-col sm:flex-row gap-3 items-end">
@@ -283,9 +293,9 @@ export default function CreatePurchase() {
                       className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     >
                       <option value="">اختر مادة...</option>
-                      {materials.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.unit})
+                      {materials.map((material) => (
+                        <option key={material.id} value={material.id}>
+                          {material.name} ({material.unit})
                         </option>
                       ))}
                     </select>
@@ -295,8 +305,8 @@ export default function CreatePurchase() {
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">الكمية *</label>
                     <input
                       type="number"
-                      step="0.01"
-                      min="0.01"
+                      step="0.001"
+                      min="0.001"
                       required
                       value={item.quantity}
                       onChange={(e) => {
@@ -312,7 +322,7 @@ export default function CreatePurchase() {
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">سعر الوحدة ({currency}) *</label>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.0001"
                       min="0"
                       required
                       value={item.unit_price}
@@ -335,7 +345,7 @@ export default function CreatePurchase() {
                       type="button"
                       onClick={() => handleRemoveItem(index)}
                       className="p-2 text-rose-500 hover:text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
-                      title="حذف البند"
+                      aria-label="حذف البند"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -346,7 +356,6 @@ export default function CreatePurchase() {
           </div>
         </div>
 
-        {/* Financial Summary & Notes */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -357,7 +366,7 @@ export default function CreatePurchase() {
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 placeholder="تفاصيل التوريد أو الدفع..."
                 className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-              ></textarea>
+              />
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700/70 space-y-3 text-xs">
@@ -406,11 +415,11 @@ export default function CreatePurchase() {
                 <span>الإجمالي النهائي:</span>
                 <span>{formatCurrency(total, currency)}</span>
               </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">تُعاد مراجعة الإجماليات وحسابها داخل قاعدة البيانات عند الحفظ.</p>
             </div>
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="flex justify-end gap-3">
           <button
             type="button"
