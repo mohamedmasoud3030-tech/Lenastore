@@ -1,7 +1,7 @@
 {
-  "name": "إدارة المشروع الإنشائي",
-  "short_name": "إدارة المشروع",
-  "description": "تطبيق لإدارة مواد ومشتريات ومدفوعات المشروع الإنشائي",
+  "name": "LENA SUPPLY",
+  "short_name": "LENA",
+  "description": "إدارة المواد والمشتريات والمخزون للمشروعات الإنشائية",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

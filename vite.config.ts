@@ -12,6 +12,7 @@ export default defineConfig(() => ({
       registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png', 'masked-icon.svg'],
       workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
@@ -22,9 +23,9 @@ export default defineConfig(() => ({
         ],
       },
       manifest: {
-        name: 'إدارة مشروع البناء',
-        short_name: 'مشروعي',
-        description: 'تطبيق إدارة المواد والمشتريات لمشروع بناء',
+        name: 'LENA SUPPLY',
+        short_name: 'LENA',
+        description: 'إدارة المواد والمشتريات والمخزون للمشروعات الإنشائية',
         theme_color: '#0f4c81',
         background_color: '#ffffff',
         lang: 'ar',
@@ -56,6 +57,20 @@ export default defineConfig(() => ({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+    },
+  },
+  build: {
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-recharts': ['recharts'],
+          'vendor-pdf': ['jspdf', 'html2canvas'],
+          'vendor-icons': ['lucide-react'],
+        },
+      },
     },
   },
   server: {

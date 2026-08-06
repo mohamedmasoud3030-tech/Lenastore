@@ -1,6 +1,6 @@
 {
-  "name": "Lenastore Construction PWA",
-  "description": "نواة نظام احترافي لإدارة مواد ومشتريات ومخزون مشروع إنشائي",
+  "name": "LENA SUPPLY",
+  "description": "إدارة المواد والمشتريات والمخزون للمشروعات الإنشائية",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
