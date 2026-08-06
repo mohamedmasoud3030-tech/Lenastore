@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Supplier, Material } from '../types';
 import { parseSupabaseError } from '../lib/supabaseErrors';
 import { useToast } from './common/ToastProvider';
+import { PageHeader } from './common/PageHeader';
 import { formatCurrency } from '../lib/formatters';
 import { Save, X, Plus, Trash2, ArrowRight, ShoppingCart } from 'lucide-react';
 
@@ -184,56 +185,47 @@ export default function CreatePurchase() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-        >
-          <ArrowRight className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">إنشاء أمر شراء وتوريد جديد</h1>
-          <p className="text-xs text-slate-500">
-            {request ? `تحويل من طلب شراء: ${request.request_number}` : 'توثيق عقد شراء أو فواتير توريد موقعية'}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="إنشاء أمر شراء وتوريد جديد"
+        description={request ? `تحويل من طلب شراء: ${request.request_number}` : 'توثيق عقد شراء أو فواتير توريد موقعية'}
+        onBack={() => navigate(-1)}
+        icon={ShoppingCart}
+      />
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Header Metadata */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
-          <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">البيانات الأساسية للطلب</h3>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-4">
+          <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">البيانات الأساسية للطلب</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">رقم أمر الشراء *</label>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">رقم أمر الشراء *</label>
               <input
                 type="text"
                 required
                 value={form.purchase_number}
                 onChange={(e) => setForm({ ...form, purchase_number: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">تاريخ أمر الشراء *</label>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">تاريخ أمر الشراء *</label>
               <input
                 type="date"
                 required
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">اختر المورد *</label>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">اختر المورد *</label>
               <select
                 required
                 value={form.supplier_id}
                 onChange={(e) => setForm({ ...form, supplier_id: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               >
                 <option value="">اختر مورد...</option>
                 {suppliers.map((s) => (
@@ -245,26 +237,26 @@ export default function CreatePurchase() {
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">رقم فاتورة المورد (إن وجد)</label>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">رقم فاتورة المورد (إن وجد)</label>
               <input
                 type="text"
                 placeholder="مثال: INV-9901"
                 value={form.invoice_number}
                 onChange={(e) => setForm({ ...form, invoice_number: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               />
             </div>
           </div>
         </div>
 
         {/* Materials & Unit Prices */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-sm font-bold text-slate-900">بنود التوريد والأسعار</h3>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">بنود التوريد والأسعار</h3>
             <button
               type="button"
               onClick={handleAddItem}
-              className="inline-flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-700"
+              className="inline-flex items-center gap-1 text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 transition-colors"
             >
               <Plus className="w-4 h-4" /> إضافة مادة أخرى
             </button>
@@ -272,15 +264,14 @@ export default function CreatePurchase() {
 
           <div className="space-y-3">
             {items.map((item, index) => {
-              const selectedMat = materials.find((m) => m.id === item.material_id);
               const q = Number(item.quantity) || 0;
               const p = Number(item.unit_price) || 0;
               const itemTotal = q * p;
 
               return (
-                <div key={index} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row gap-3 items-end">
+                <div key={index} className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/70 rounded-xl flex flex-col sm:flex-row gap-3 items-end">
                   <div className="w-full sm:w-2/5">
-                    <label className="block text-xs text-slate-600 mb-1">المادة *</label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">المادة *</label>
                     <select
                       required
                       value={item.material_id}
@@ -289,7 +280,7 @@ export default function CreatePurchase() {
                         next[index].material_id = e.target.value;
                         setItems(next);
                       }}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     >
                       <option value="">اختر مادة...</option>
                       {materials.map((m) => (
@@ -301,7 +292,7 @@ export default function CreatePurchase() {
                   </div>
 
                   <div className="w-full sm:w-1/5">
-                    <label className="block text-xs text-slate-600 mb-1">الكمية *</label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">الكمية *</label>
                     <input
                       type="number"
                       step="0.01"
@@ -313,12 +304,12 @@ export default function CreatePurchase() {
                         next[index].quantity = e.target.value;
                         setItems(next);
                       }}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     />
                   </div>
 
                   <div className="w-full sm:w-1/5">
-                    <label className="block text-xs text-slate-600 mb-1">سعر الوحدة ({currency}) *</label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">سعر الوحدة ({currency}) *</label>
                     <input
                       type="number"
                       step="0.01"
@@ -330,20 +321,21 @@ export default function CreatePurchase() {
                         next[index].unit_price = e.target.value;
                         setItems(next);
                       }}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     />
                   </div>
 
-                  <div className="w-full sm:w-1/5 text-left py-2 px-2 bg-white rounded-lg border border-slate-200">
+                  <div className="w-full sm:w-1/5 text-left py-2 px-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                     <span className="text-[11px] text-slate-400 block">الإجمالي:</span>
-                    <span className="text-xs font-bold text-slate-900">{formatCurrency(itemTotal, currency)}</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">{formatCurrency(itemTotal, currency)}</span>
                   </div>
 
                   {items.length > 1 && (
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
-                      className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                      className="p-2 text-rose-500 hover:text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                      title="حذف البند"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -355,62 +347,62 @@ export default function CreatePurchase() {
         </div>
 
         {/* Financial Summary & Notes */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">ملاحظات أمر الشراء</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">ملاحظات أمر الشراء</label>
               <textarea
                 rows={4}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 placeholder="تفاصيل التوريد أو الدفع..."
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               ></textarea>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 text-xs">
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700/70 space-y-3 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-600">المجموع الفرعي:</span>
-                <span className="font-bold text-slate-900">{formatCurrency(subtotal, currency)}</span>
+                <span className="text-slate-600 dark:text-slate-400">المجموع الفرعي:</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">{formatCurrency(subtotal, currency)}</span>
               </div>
 
               <div className="flex justify-between items-center">
-                <span className="text-slate-600">خصم:</span>
+                <span className="text-slate-600 dark:text-slate-400">خصم:</span>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={form.discount}
                   onChange={(e) => setForm({ ...form, discount: e.target.value })}
-                  className="w-28 px-2 py-1 border border-slate-300 rounded-lg text-left text-xs bg-white"
+                  className="w-28 px-2 py-1 border border-slate-300 dark:border-slate-700 rounded-lg text-left text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                 />
               </div>
 
               <div className="flex justify-between items-center">
-                <span className="text-slate-600">ضريبة:</span>
+                <span className="text-slate-600 dark:text-slate-400">ضريبة:</span>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={form.tax}
                   onChange={(e) => setForm({ ...form, tax: e.target.value })}
-                  className="w-28 px-2 py-1 border border-slate-300 rounded-lg text-left text-xs bg-white"
+                  className="w-28 px-2 py-1 border border-slate-300 dark:border-slate-700 rounded-lg text-left text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                 />
               </div>
 
-              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                <span className="text-slate-600">مصاريف نقل وتفريغ:</span>
+              <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-2">
+                <span className="text-slate-600 dark:text-slate-400">مصاريف نقل وتفريغ:</span>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={form.transport_cost}
                   onChange={(e) => setForm({ ...form, transport_cost: e.target.value })}
-                  className="w-28 px-2 py-1 border border-slate-300 rounded-lg text-left text-xs bg-white"
+                  className="w-28 px-2 py-1 border border-slate-300 dark:border-slate-700 rounded-lg text-left text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                 />
               </div>
 
-              <div className="flex justify-between text-sm font-bold text-sky-700 pt-1">
+              <div className="flex justify-between text-sm font-black text-sky-700 dark:text-sky-400 pt-1">
                 <span>الإجمالي النهائي:</span>
                 <span>{formatCurrency(total, currency)}</span>
               </div>
@@ -423,14 +415,14 @@ export default function CreatePurchase() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+            className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs"
           >
             إلغاء
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors shadow-2xs disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {loading ? 'جاري الحفظ...' : 'حفظ أمر الشراء'}

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useProject } from '../lib/ProjectContext';
 import { StockIssue } from '../types';
 import { formatDate } from '../lib/formatters';
-import { X, Printer, Building2, CheckCircle2 } from 'lucide-react';
+import { X, Printer, Download, Loader2 } from 'lucide-react';
+import { exportElementToPdf, printElementContent } from '../lib/pdfExport';
 
 interface StockIssuePrintModalProps {
   issue: StockIssue | null;
@@ -12,11 +13,24 @@ interface StockIssuePrintModalProps {
 
 export const StockIssuePrintModal: React.FC<StockIssuePrintModalProps> = ({ issue, isOpen, onClose }) => {
   const { project } = useProject();
+  const [exporting, setExporting] = useState(false);
 
   if (!isOpen || !issue) return null;
 
   const handlePrint = () => {
-    window.print();
+    printElementContent('stock-issue-print-content', `سند صرف مخزني - ${issue.issue_number}`);
+  };
+
+  const handlePdfDownload = async () => {
+    setExporting(true);
+    try {
+      await exportElementToPdf('stock-issue-print-content', `سند_صرف_${issue.issue_number}`);
+    } catch (err) {
+      console.error(err);
+      window.print();
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -31,9 +45,17 @@ export const StockIssuePrintModal: React.FC<StockIssuePrintModalProps> = ({ issu
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrint}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-500 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors"
               >
                 <Printer className="w-4 h-4" /> طباعة السند (A4)
+              </button>
+              <button
+                onClick={handlePdfDownload}
+                disabled={exporting}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-800 text-slate-200 hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                {exporting ? <Loader2 className="w-4 h-4 animate-spin text-amber-400" /> : <Download className="w-4 h-4" />}
+                {exporting ? 'جاري التحميل...' : 'تصدير PDF'}
               </button>
               <button onClick={onClose} className="text-slate-400 hover:text-white p-1 rounded-lg">
                 <X className="w-5 h-5" />
@@ -42,7 +64,7 @@ export const StockIssuePrintModal: React.FC<StockIssuePrintModalProps> = ({ issu
           </div>
 
           {/* Printable Voucher Document */}
-          <div className="p-8 space-y-6 text-slate-900 bg-white print:p-0">
+          <div id="stock-issue-print-content" className="p-8 space-y-6 text-slate-900 bg-white print:p-0">
             {/* Document Header */}
             <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
               <div>

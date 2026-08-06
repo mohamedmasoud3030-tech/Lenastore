@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import { ProjectProvider, useProject } from './lib/ProjectContext';
+import { ThemeProvider } from './lib/ThemeContext';
 import { supabase } from './lib/supabase';
 
 import SupabaseSetup from './components/SupabaseSetup';
@@ -93,12 +94,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ProjectProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
-      </ProjectProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ProjectProvider>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </ProjectProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

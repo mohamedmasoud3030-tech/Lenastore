@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ArrowRightLeft,
   ArrowUpRight,
-  CalendarDays,
   ClipboardPlus,
   Package2,
   ShoppingCart,
@@ -14,6 +13,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useProject } from '../lib/ProjectContext';
+import AnalyticsCharts from './AnalyticsCharts';
+import { PageHeader } from './common/PageHeader';
+import { LoadingSkeleton } from './common/LoadingSkeleton';
 
 interface DashboardStats {
   totalPurchases: number;
@@ -98,220 +100,201 @@ export default function Dashboard() {
     [project?.currency]
   );
 
-  const currentDate = new Intl.DateTimeFormat('ar-OM', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date());
-
   const statCards = [
     {
       label: 'إجمالي أوامر الشراء',
       value: currencyFormatter.format(stats.totalPurchases),
       icon: ShoppingCart,
-      iconClass: 'bg-sky-50 text-sky-800 ring-sky-100',
+      iconClass: 'bg-sky-50 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300 ring-sky-100 dark:ring-sky-900',
       accentClass: 'from-sky-800 to-cyan-600',
     },
     {
       label: 'المدفوع للموردين',
       value: currencyFormatter.format(stats.totalPaid),
       icon: WalletCards,
-      iconClass: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+      iconClass: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 ring-emerald-100 dark:ring-emerald-900',
       accentClass: 'from-emerald-700 to-teal-500',
     },
     {
-      label: 'الرصيد المستحق',
+      label: 'الرصيد المستحق للموردين',
       value: currencyFormatter.format(remaining),
       icon: ArrowDownLeft,
-      iconClass: 'bg-amber-50 text-amber-700 ring-amber-100',
+      iconClass: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 ring-amber-100 dark:ring-amber-900',
       accentClass: 'from-amber-500 to-orange-500',
     },
     {
       label: 'مواد عند حد إعادة الطلب',
       value: String(stats.lowStock),
       icon: AlertTriangle,
-      iconClass: 'bg-red-50 text-red-700 ring-red-100',
+      iconClass: 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300 ring-red-100 dark:ring-red-900',
       accentClass: 'from-red-600 to-rose-500',
     },
   ];
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-32 animate-pulse rounded-3xl bg-slate-200/70" />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {[0, 1, 2, 3].map((item) => (
-            <div key={item} className="h-36 animate-pulse rounded-3xl bg-slate-200/70" />
-          ))}
-        </div>
-        <div className="h-72 animate-pulse rounded-3xl bg-slate-200/70" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[1.75rem] bg-slate-950 px-5 py-6 text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)] sm:px-7 sm:py-8">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(14,116,144,0.28),transparent_22rem),radial-gradient(circle_at_90%_100%,rgba(245,158,11,0.16),transparent_22rem)]" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-              <CalendarDays size={15} className="text-amber-300" />
-              {currentDate}
-            </div>
-            <h1 className="mt-4 text-2xl font-black leading-tight sm:text-3xl">لوحة مشروع {project?.name}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
-              متابعة المشتريات، الالتزامات المالية، تنبيهات المخزون وأحدث الحركات من شاشة تشغيل واحدة.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
+      {/* Page Header matching rest of app */}
+      <PageHeader
+        title={`لوحة تشغيل مشروع ${project?.name || ''}`}
+        description="نظرة شاملة وموحدة على الموقف المالي وتوريدات المواد وأحدث حركة المخزون الإنشائي."
+        action={
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               to="/requests/new"
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-extrabold text-slate-950 transition hover:bg-amber-300"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-amber-400 px-3.5 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-300 shadow-2xs"
             >
-              <ClipboardPlus size={18} />
+              <ClipboardPlus size={16} />
               طلب شراء جديد
             </Link>
             <Link
               to="/movements"
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2.5 text-sm font-extrabold text-white transition hover:bg-white/[0.12]"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700 shadow-2xs"
             >
-              <ArrowRightLeft size={18} />
+              <ArrowRightLeft size={16} />
               تسجيل حركة
             </Link>
           </div>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map(({ label, value, icon: Icon, iconClass, accentClass }) => (
-          <article key={label} className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.05)]">
-            <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-l ${accentClass}`} />
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-xs font-bold leading-5 text-slate-500">{label}</p>
-                <p className="mt-3 truncate text-xl font-black tracking-tight text-slate-950" title={value}>
-                  {value}
-                </p>
-              </div>
-              <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ring-1 ${iconClass}`}>
-                <Icon size={20} />
-              </span>
-            </div>
-          </article>
-        ))}
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(20rem,0.75fr)]">
-        <article className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.05)]">
-          <header className="flex items-center justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
-            <div>
-              <h2 className="text-base font-black text-slate-950">آخر حركات المخزون</h2>
-              <p className="mt-1 text-xs font-semibold text-slate-500">أحدث عمليات الاستلام والصرف المسجلة</p>
-            </div>
-            <Link to="/movements" className="inline-flex items-center gap-1 text-xs font-extrabold text-sky-800 hover:text-sky-950">
-              عرض الكل
-              <ArrowLeft size={15} />
-            </Link>
-          </header>
-
-          <div className="divide-y divide-slate-100">
-            {recentMovements.length === 0 ? (
-              <div className="px-5 py-14 text-center sm:px-6">
-                <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">
-                  <Package2 size={24} />
-                </span>
-                <p className="mt-4 text-sm font-extrabold text-slate-700">لا توجد حركات مخزون بعد</p>
-                <p className="mt-1 text-xs text-slate-400">ستظهر عمليات الاستلام والصرف هنا تلقائيًا.</p>
-              </div>
-            ) : (
-              recentMovements.map((movement) => {
-                const material = Array.isArray(movement.materials) ? movement.materials[0] : movement.materials;
-                const isIncoming = movement.type === 'IN';
-
-                return (
-                  <div key={movement.id} className="flex items-center gap-4 px-5 py-4 transition hover:bg-slate-50/80 sm:px-6">
-                    <span
-                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${
-                        isIncoming ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                      }`}
-                    >
-                      {isIncoming ? <ArrowDownLeft size={19} /> : <ArrowUpRight size={19} />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <p className="truncate text-sm font-extrabold text-slate-900">{material?.name || 'مادة غير معروفة'}</p>
-                        <span
-                          className={`rounded-full px-2 py-1 text-[10px] font-black ${
-                            isIncoming ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                          }`}
-                        >
-                          {isIncoming ? 'استلام' : 'صرف'}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-xs font-semibold text-slate-400">
-                        {movement.reference_number || movement.location_used || 'بدون مرجع'} • {movement.date}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-sm font-black text-slate-950">
-                      {movement.quantity} <span className="text-xs font-bold text-slate-400">{material?.unit}</span>
+      {loading ? (
+        <LoadingSkeleton rows={5} />
+      ) : (
+        <>
+          {/* Standardized 4 KPI Stats Cards */}
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            {statCards.map(({ label, value, icon: Icon, iconClass, accentClass }) => (
+              <article key={label} className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs">
+                <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-l ${accentClass}`} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 leading-snug">{label}</p>
+                    <p className="mt-2 truncate text-lg sm:text-xl font-black tracking-tight text-slate-950 dark:text-slate-100" title={value}>
+                      {value}
                     </p>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </article>
+                  <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ring-1 ${iconClass}`}>
+                    <Icon size={18} />
+                  </span>
+                </div>
+              </article>
+            ))}
+          </section>
 
-        <div className="space-y-6">
-          <article className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.05)] sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-black text-slate-950">الموقف المالي</h2>
-                <p className="mt-1 text-xs font-semibold text-slate-500">نسبة السداد من إجمالي المشتريات</p>
-              </div>
-              <span className="text-lg font-black text-sky-900">{paymentProgress.toFixed(0)}%</span>
-            </div>
-            <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-gradient-to-l from-sky-800 to-cyan-500 transition-all"
-                style={{ width: `${paymentProgress}%` }}
-              />
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-emerald-50 p-3">
-                <p className="text-[10px] font-black text-emerald-700">تم سداده</p>
-                <p className="mt-1 truncate text-sm font-black text-emerald-950">{currencyFormatter.format(stats.totalPaid)}</p>
-              </div>
-              <div className="rounded-2xl bg-amber-50 p-3">
-                <p className="text-[10px] font-black text-amber-700">متبقٍ</p>
-                <p className="mt-1 truncate text-sm font-black text-amber-950">{currencyFormatter.format(remaining)}</p>
-              </div>
-            </div>
-          </article>
+          {/* Consumption & Financial Analytics Chart Preview */}
+          <AnalyticsCharts compact={true} />
 
-          <article className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.05)] sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-black text-slate-950">طلبات قيد المتابعة</h2>
-                <p className="mt-1 text-xs font-semibold text-slate-500">طلبات لم تصل إلى الشراء أو الإلغاء</p>
+          {/* Lower Dashboard Grid (Recent Movements & Financial Progress) */}
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(20rem,0.75fr)]">
+            <article className="overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+              <header className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-5 py-4">
+                <div>
+                  <h2 className="text-sm font-black text-slate-950 dark:text-slate-100">آخر حركات المخزون</h2>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">أحدث عمليات الاستلام والصرف المسجلة</p>
+                </div>
+                <Link to="/movements" className="inline-flex items-center gap-1 text-xs font-bold text-sky-800 dark:text-sky-400 hover:underline">
+                  عرض الكل
+                  <ArrowLeft size={14} />
+                </Link>
+              </header>
+
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                {recentMovements.length === 0 ? (
+                  <div className="px-5 py-12 text-center">
+                    <span className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400">
+                      <Package2 size={22} />
+                    </span>
+                    <p className="mt-3 text-xs font-bold text-slate-700 dark:text-slate-300">لا توجد حركات مخزون بعد</p>
+                    <p className="mt-1 text-[11px] text-slate-400">ستظهر عمليات الاستلام والصرف هنا تلقائيًا.</p>
+                  </div>
+                ) : (
+                  recentMovements.map((movement) => {
+                    const material = Array.isArray(movement.materials) ? movement.materials[0] : movement.materials;
+                    const isIncoming = movement.type === 'IN';
+
+                    return (
+                      <div key={movement.id} className="flex items-center gap-3.5 px-5 py-3.5 transition hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
+                        <span
+                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${
+                            isIncoming ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
+                          }`}
+                        >
+                          {isIncoming ? <ArrowDownLeft size={17} /> : <ArrowUpRight size={17} />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <p className="truncate text-xs font-black text-slate-900 dark:text-slate-100">{material?.name || 'مادة غير معروفة'}</p>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                isIncoming ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
+                              }`}
+                            >
+                              {isIncoming ? 'استلام' : 'صرف'}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
+                            {movement.reference_number || movement.location_used || 'بدون مرجع'} • {movement.date}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-xs font-black text-slate-950 dark:text-slate-100">
+                          {movement.quantity} <span className="text-[10px] text-slate-400">{material?.unit}</span>
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-50 text-xl font-black text-sky-900 ring-1 ring-sky-100">
-                {stats.openRequests}
-              </span>
+            </article>
+
+            <div className="space-y-5">
+              <article className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-black text-slate-950 dark:text-slate-100">الموقف المالي</h2>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">نسبة السداد من إجمالي المشتريات</p>
+                  </div>
+                  <span className="text-base font-black text-sky-900 dark:text-sky-400">{paymentProgress.toFixed(0)}%</span>
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-l from-sky-800 to-cyan-500 transition-all"
+                    style={{ width: `${paymentProgress}%` }}
+                  />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-3">
+                    <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">تم سداده</p>
+                    <p className="mt-1 truncate font-black text-emerald-950 dark:text-emerald-200">{currencyFormatter.format(stats.totalPaid)}</p>
+                  </div>
+                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-3">
+                    <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400">متبقٍ</p>
+                    <p className="mt-1 truncate font-black text-amber-950 dark:text-amber-200">{currencyFormatter.format(remaining)}</p>
+                  </div>
+                </div>
+              </article>
+
+              <article className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-black text-slate-950 dark:text-slate-100">طلبات قيد المتابعة</h2>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">طلبات لم تصل إلى الشراء أو الإلغاء</p>
+                  </div>
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 dark:bg-sky-950/50 text-base font-black text-sky-900 dark:text-sky-300">
+                    {stats.openRequests}
+                  </span>
+                </div>
+                <Link
+                  to="/requests"
+                  className="mt-4 flex min-h-10 items-center justify-between rounded-xl bg-slate-950 dark:bg-slate-800 px-4 py-2 text-xs font-bold text-white transition hover:bg-sky-900"
+                >
+                  متابعة طلبات الشراء
+                  <ArrowLeft size={15} />
+                </Link>
+              </article>
             </div>
-            <Link
-              to="/requests"
-              className="mt-5 flex min-h-11 items-center justify-between rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-sky-900"
-            >
-              متابعة طلبات الشراء
-              <ArrowLeft size={16} />
-            </Link>
-          </article>
-        </div>
-      </section>
+          </section>
+        </>
+      )}
     </div>
   );
 }

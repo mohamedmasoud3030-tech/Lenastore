@@ -133,12 +133,12 @@ export default function Attachments({ entityType, entityId }: AttachmentsProps) 
   };
 
   return (
-    <div className="bg-white shadow rounded-lg p-5 mt-6">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium text-gray-900">المرفقات</h3>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xs space-y-4">
+      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">المرفقات والوثائق</h3>
         <div>
-          <label className={`inline-flex items-center gap-2 px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-            <Upload size={16} />
+          <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-900 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/60 hover:bg-sky-100 dark:hover:bg-sky-900/50 transition-colors cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+            <Upload size={14} />
             {uploading ? 'جاري الرفع...' : 'رفع ملف'}
             <input type="file" className="hidden" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFileUpload} disabled={uploading} />
           </label>
@@ -146,27 +146,27 @@ export default function Attachments({ entityType, entityId }: AttachmentsProps) 
       </div>
 
       {loading ? (
-        <p className="text-sm text-gray-500">جاري التحميل...</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">جاري التحميل...</p>
       ) : attachments.length === 0 ? (
-        <p className="text-sm text-gray-500 text-center py-4">لا توجد مرفقات.</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">لا توجد مرفقات مسجلة لهذا البند.</p>
       ) : (
-        <ul className="divide-y divide-gray-200">
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
           {attachments.map(att => (
-            <li key={att.id} className="py-3 flex justify-between items-center">
+            <li key={att.id} className="py-2.5 flex justify-between items-center gap-3">
               <div className="flex items-center gap-3 overflow-hidden">
                 {att.file_type.includes('pdf') ? (
-                  <FileText className="text-red-500 flex-shrink-0" size={24} />
+                  <FileText className="text-rose-500 shrink-0" size={20} />
                 ) : (
-                  <ImageIcon className="text-blue-500 flex-shrink-0" size={24} />
+                  <ImageIcon className="text-sky-500 shrink-0" size={20} />
                 )}
                 <div className="truncate">
-                  <p className="text-sm font-medium text-gray-900 truncate" dir="ltr">{att.file_name}</p>
-                  <p className="text-xs text-gray-500">{formatSize(att.file_size)}</p>
+                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate" dir="ltr">{att.file_name}</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">{formatSize(att.file_size)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => handlePreview(att.file_path)} className="p-1 text-gray-400 hover:text-blue-600">
-                  <Eye size={18} />
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => handlePreview(att.file_path)} className="p-1.5 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 rounded-lg transition-colors" title="معاينة">
+                  <Eye size={16} />
                 </button>
                 <button onClick={async () => {
                    if (!supabase) return;
@@ -178,11 +178,11 @@ export default function Attachments({ entityType, entityId }: AttachmentsProps) 
                      console.error(e);
                      alert('لا يمكن تنزيل الملف. قد لا تملك الصلاحية.');
                    }
-                }} className="p-1 text-gray-400 hover:text-green-600" title="تحميل">
-                  <Download size={18} />
+                }} className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg transition-colors" title="تحميل">
+                  <Download size={16} />
                 </button>
-                <button onClick={() => handleDelete(att.id, att.file_path)} className="p-1 text-gray-400 hover:text-red-600">
-                  <Trash2 size={18} />
+                <button onClick={() => handleDelete(att.id, att.file_path)} className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-colors" title="حذف">
+                  <Trash2 size={16} />
                 </button>
               </div>
             </li>
@@ -192,15 +192,15 @@ export default function Attachments({ entityType, entityId }: AttachmentsProps) 
 
       {/* Preview Modal */}
       {previewUrl && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black bg-opacity-75" onClick={() => setPreviewUrl(null)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs" onClick={() => setPreviewUrl(null)}>
           <div className="relative max-w-4xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setPreviewUrl(null)} className="absolute -top-10 right-0 text-white hover:text-gray-300">
-              <X size={32} />
+            <button onClick={() => setPreviewUrl(null)} className="absolute -top-10 right-0 text-white hover:text-slate-300">
+              <X size={28} />
             </button>
             {previewUrl.includes('.pdf') || previewUrl.toLowerCase().endsWith('.pdf') ? (
-              <iframe src={previewUrl} className="w-full h-[80vh] bg-white rounded" title="PDF Preview" />
+              <iframe src={previewUrl} className="w-full h-[80vh] bg-white rounded-2xl" title="PDF Preview" />
             ) : (
-              <img src={previewUrl} alt="Preview" className="max-w-full max-h-[80vh] object-contain mx-auto rounded" />
+              <img src={previewUrl} alt="Preview" className="max-w-full max-h-[80vh] object-contain mx-auto rounded-2xl" />
             )}
           </div>
         </div>

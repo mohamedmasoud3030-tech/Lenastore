@@ -135,63 +135,56 @@ export default function CreatePurchaseRequest() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-        >
-          <ArrowRight className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">إنشاء طلب شراء موقعي جديد</h1>
-          <p className="text-xs text-slate-500">توثيق احتياج الأعمال الهندسية من مواد وتوريدات</p>
-        </div>
-      </div>
+      <PageHeader
+        title="إنشاء طلب شراء موقعي جديد"
+        description="توثيق احتياج الأعمال الهندسية من مواد وتوريدات"
+        onBack={() => navigate(-1)}
+        icon={FileText}
+      />
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Basic Info */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
-          <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">البيانات الأساسية للطلب</h3>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">البيانات الأساسية للطلب</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">رقم الطلب *</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">رقم الطلب *</label>
               <input
                 type="text"
                 required
                 value={form.request_number}
                 onChange={(e) => setForm({ ...form, request_number: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">تاريخ الطلب *</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">تاريخ الطلب *</label>
               <input
                 type="date"
                 required
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">تاريخ الاحتياج بالموقع</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">تاريخ الاحتياج بالموقع</label>
               <input
                 type="date"
                 value={form.needed_date}
                 onChange={(e) => setForm({ ...form, needed_date: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">الأولوية *</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">الأولوية *</label>
               <select
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value as any })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               >
                 <option value="NORMAL">عادي (اعتيادي)</option>
                 <option value="URGENT">عاجل جداً (توقف أعمال)</option>
@@ -199,27 +192,27 @@ export default function CreatePurchaseRequest() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block font-semibold text-slate-700 mb-1">سبب الطلب / الغرض *</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">سبب الطلب / الغرض *</label>
               <input
                 type="text"
                 required
                 placeholder="مثال: توريد أسمنت صبة صقف الدور الأول"
                 value={form.reason}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
               />
             </div>
           </div>
         </div>
 
         {/* Required Materials */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-sm font-bold text-slate-900">المواد المطلوبة</h3>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">المواد المطلوبة</h3>
             <button
               type="button"
               onClick={handleAddItem}
-              className="inline-flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-700"
+              className="inline-flex items-center gap-1 text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700"
             >
               <Plus className="w-4 h-4" /> إضافة مادة أخرى
             </button>
@@ -229,9 +222,9 @@ export default function CreatePurchaseRequest() {
             {items.map((item, index) => {
               const selectedMat = materials.find((m) => m.id === item.material_id);
               return (
-                <div key={index} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row gap-3 items-end">
+                <div key={index} className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col sm:flex-row gap-3 items-end">
                   <div className="w-full sm:flex-1">
-                    <label className="block text-xs text-slate-600 mb-1">اختر المادة *</label>
+                    <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">اختر المادة *</label>
                     <select
                       required
                       value={item.material_id}
@@ -240,7 +233,7 @@ export default function CreatePurchaseRequest() {
                         next[index].material_id = e.target.value;
                         setItems(next);
                       }}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     >
                       <option value="">اختر مادة من الكتالوج...</option>
                       {materials.map((m) => (
@@ -252,7 +245,7 @@ export default function CreatePurchaseRequest() {
                   </div>
 
                   <div className="w-full sm:w-36">
-                    <label className="block text-xs text-slate-600 mb-1">الكمية المطلوبة *</label>
+                    <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">الكمية المطلوبة *</label>
                     <input
                       type="number"
                       step="0.01"
@@ -264,13 +257,13 @@ export default function CreatePurchaseRequest() {
                         next[index].quantity = e.target.value;
                         setItems(next);
                       }}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     />
                   </div>
 
                   {selectedMat && (
-                    <div className="text-xs text-slate-500 py-2 px-3 bg-white border border-slate-200 rounded-lg whitespace-nowrap">
-                      الوحدة: <span className="font-bold text-slate-900">{selectedMat.unit}</span>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 py-2 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg whitespace-nowrap">
+                      الوحدة: <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMat.unit}</span>
                     </div>
                   )}
 
@@ -278,7 +271,7 @@ export default function CreatePurchaseRequest() {
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
-                      className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                      className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -290,14 +283,14 @@ export default function CreatePurchaseRequest() {
         </div>
 
         {/* Notes */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
-          <label className="block text-xs font-semibold text-slate-700 mb-1">ملاحظات إضافية</label>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">ملاحظات إضافية</label>
           <textarea
             rows={3}
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
             placeholder="أية شروط أو ملاحظات تسليم موقعية..."
-            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
           ></textarea>
         </div>
 
@@ -306,7 +299,7 @@ export default function CreatePurchaseRequest() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+            className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-xs"
           >
             إلغاء
           </button>

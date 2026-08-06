@@ -177,13 +177,13 @@ export default function Movements() {
       </div>
 
       {/* Navigation Tabs & Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-3 border-b border-slate-200 pb-3">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
             <button
               onClick={() => setActiveTab('LEDGER')}
               className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === 'LEDGER' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'LEDGER' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
               سجل الحركات (Ledger)
@@ -191,7 +191,7 @@ export default function Movements() {
             <button
               onClick={() => setActiveTab('ISSUES')}
               className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === 'ISSUES' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'ISSUES' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
               سندات الصرف ({stockIssues.length})
@@ -199,7 +199,7 @@ export default function Movements() {
             <button
               onClick={() => setActiveTab('RECEIPTS')}
               className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === 'RECEIPTS' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'RECEIPTS' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
               سندات الاستلام والوارد ({goodsReceipts.length})
@@ -223,7 +223,7 @@ export default function Movements() {
               placeholder="بحث بالمادة، المستلم، المورد، رقم المرجع أو السند..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-3 pr-9 py-2 text-xs border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+              className="w-full pl-3 pr-9 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
             />
           </div>
 
@@ -232,7 +232,7 @@ export default function Movements() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value as any)}
-                className="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden w-full sm:w-auto"
+                className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden w-full sm:w-auto"
               >
                 <option value="ALL">جميع الحركات</option>
                 <option value="IN">وارد فقط (+)</option>
@@ -242,7 +242,7 @@ export default function Movements() {
               <select
                 value={materialFilter}
                 onChange={(e) => setMaterialFilter(e.target.value)}
-                className="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden w-full sm:w-auto"
+                className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden w-full sm:w-auto"
               >
                 <option value="ALL">جميع المواد</option>
                 {materials.map((m) => (
@@ -264,10 +264,10 @@ export default function Movements() {
             description={search ? 'لم نجد حركات تطابق شروط البحث.' : 'لم يتم تسجيل أي حركات مخزنية لهذا المشروع بعد.'}
           />
         ) : (
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-semibold">
                   <tr>
                     <th className="px-5 py-3.5">التاريخ والنوع</th>
                     <th className="px-4 py-3.5">اسم المادة</th>
@@ -277,23 +277,23 @@ export default function Movements() {
                     <th className="px-5 py-3.5 text-left">ملاحظات</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-800">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
                   {filteredMovements.map((mov) => {
                     const isIN = mov.type === 'IN';
                     return (
-                      <tr key={mov.id} className="hover:bg-slate-50/80 transition-colors">
+                      <tr key={mov.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2.5">
                             <span
                               className={`p-1.5 rounded-lg ${
-                                isIN ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                isIN ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400' : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-400'
                               }`}
                             >
                               {isIN ? <ArrowDownToLine className="w-4 h-4" /> : <ArrowUpFromLine className="w-4 h-4" />}
                             </span>
                             <div>
                               <StatusBadge variant={mov.type} />
-                              <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                              <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
                                 {formatDate(mov.date)}
                               </div>
@@ -301,48 +301,48 @@ export default function Movements() {
                           </div>
                         </td>
 
-                        <td className="px-4 py-3.5 font-bold text-slate-900">
+                        <td className="px-4 py-3.5 font-bold text-slate-900 dark:text-slate-100">
                           {mov.materials?.name || 'مادة مخزنية'}
                         </td>
 
                         <td className="px-4 py-3.5 text-center">
-                          <span className={`text-sm font-bold ${isIN ? 'text-emerald-700' : 'text-amber-700'}`}>
+                          <span className={`text-sm font-bold ${isIN ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
                             {isIN ? '+' : '-'}{mov.quantity}
                           </span>
-                          <span className="text-[11px] text-slate-400 ms-1">{mov.materials?.unit}</span>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 ms-1">{mov.materials?.unit}</span>
                         </td>
 
                         <td className="px-4 py-3.5">
                           {mov.receiver_name ? (
                             <div>
-                              <span className="font-semibold text-slate-900">{mov.receiver_name}</span>
-                              <p className="text-[11px] text-slate-400">مستلم موقعي</p>
+                              <span className="font-semibold text-slate-900 dark:text-slate-100">{mov.receiver_name}</span>
+                              <p className="text-[11px] text-slate-400 dark:text-slate-500">مستلم موقعي</p>
                             </div>
                           ) : mov.suppliers?.name ? (
                             <div>
-                              <span className="font-semibold text-slate-900">{mov.suppliers.name}</span>
-                              <p className="text-[11px] text-slate-400">مورد مواد</p>
+                              <span className="font-semibold text-slate-900 dark:text-slate-100">{mov.suppliers.name}</span>
+                              <p className="text-[11px] text-slate-400 dark:text-slate-500">مورد مواد</p>
                             </div>
                           ) : (
-                            <span className="text-slate-400">-</span>
+                            <span className="text-slate-400 dark:text-slate-500">-</span>
                           )}
                         </td>
 
                         <td className="px-4 py-3.5">
                           <div className="space-y-0.5">
                             {mov.location_used && (
-                              <div className="text-slate-800 font-medium">{mov.location_used}</div>
+                              <div className="text-slate-800 dark:text-slate-200 font-medium">{mov.location_used}</div>
                             )}
                             {mov.reference_number && (
-                              <div className="text-[11px] text-slate-500" dir="ltr">
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400" dir="ltr">
                                 {mov.reference_number}
                               </div>
                             )}
-                            {!mov.location_used && !mov.reference_number && <span className="text-slate-400">-</span>}
+                            {!mov.location_used && !mov.reference_number && <span className="text-slate-400 dark:text-slate-500">-</span>}
                           </div>
                         </td>
 
-                        <td className="px-5 py-3.5 text-left text-slate-500 max-w-xs truncate">
+                        <td className="px-5 py-3.5 text-left text-slate-500 dark:text-slate-400 max-w-xs truncate">
                           {mov.notes || '-'}
                         </td>
                       </tr>
@@ -373,48 +373,48 @@ export default function Movements() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {stockIssues.map((issue) => (
-              <div key={issue.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-4">
-                <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div key={issue.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-2xs space-y-4">
+                <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-slate-900 text-base" dir="ltr">{issue.issue_number}</span>
+                      <span className="font-black text-slate-900 dark:text-slate-100 text-base" dir="ltr">{issue.issue_number}</span>
                       <StatusBadge variant="out" label="سند صرف" />
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5">{formatDate(issue.date)}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{formatDate(issue.date)}</p>
                   </div>
                   <button
                     onClick={() => setSelectedPrintIssue(issue)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   >
                     <Printer className="w-3.5 h-3.5" /> طباعة / معاينة
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400">
                   <div>
-                    <span className="text-slate-400">المستلم:</span>{' '}
-                    <span className="font-bold text-slate-900">{issue.receiver_name}</span>
+                    <span className="text-slate-400 dark:text-slate-500">المستلم:</span>{' '}
+                    <span className="font-bold text-slate-900 dark:text-slate-100">{issue.receiver_name}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400">جهة الاستخدام:</span>{' '}
-                    <span className="font-bold text-slate-900">{issue.destination || '-'}</span>
+                    <span className="text-slate-400 dark:text-slate-500">جهة الاستخدام:</span>{' '}
+                    <span className="font-bold text-slate-900 dark:text-slate-100">{issue.destination || '-'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400">المرجع:</span>{' '}
-                    <span className="font-semibold text-slate-800" dir="ltr">{issue.reference_number || '-'}</span>
+                    <span className="text-slate-400 dark:text-slate-500">المرجع:</span>{' '}
+                    <span className="font-semibold text-slate-800 dark:text-slate-200" dir="ltr">{issue.reference_number || '-'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400">عدد البنود:</span>{' '}
-                    <span className="font-bold text-slate-900">{issue.stock_issue_items?.length || 0} بنود</span>
+                    <span className="text-slate-400 dark:text-slate-500">عدد البنود:</span>{' '}
+                    <span className="font-bold text-slate-900 dark:text-slate-100">{issue.stock_issue_items?.length || 0} بنود</span>
                   </div>
                 </div>
 
                 {issue.stock_issue_items && issue.stock_issue_items.length > 0 && (
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
+                  <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
                     {issue.stock_issue_items.map((item) => (
                       <div key={item.id} className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-800">{item.materials?.name || 'مادة'}</span>
-                        <span className="font-bold text-amber-800">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{item.materials?.name || 'مادة'}</span>
+                        <span className="font-bold text-amber-800 dark:text-amber-400">
                           {item.quantity} {item.materials?.unit || ''}
                         </span>
                       </div>
@@ -435,10 +435,10 @@ export default function Movements() {
             description="يتم إنشاء سندات الاستلام تلقائيًا عند توثيق استلام المشتريات من الموردين."
           />
         ) : (
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-semibold">
                   <tr>
                     <th className="px-5 py-3.5">رقم السند والتاريخ</th>
                     <th className="px-4 py-3.5">أمر الشراء والمورد</th>
@@ -447,25 +447,25 @@ export default function Movements() {
                     <th className="px-5 py-3.5 text-left">ملاحظات</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-800">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
                   {goodsReceipts.map((gr) => (
-                    <tr key={gr.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={gr.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2.5">
-                          <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+                          <div className="p-2 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 rounded-xl">
                             <ArrowDownToLine className="w-4 h-4" />
                           </div>
                           <div>
-                            <span className="font-bold text-slate-900" dir="ltr">{gr.receipt_number}</span>
-                            <p className="text-[11px] text-slate-400 mt-0.5">{formatDate(gr.date)}</p>
+                            <span className="font-bold text-slate-900 dark:text-slate-100" dir="ltr">{gr.receipt_number}</span>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{formatDate(gr.date)}</p>
                           </div>
                         </div>
                       </td>
 
                       <td className="px-4 py-4">
                         <div>
-                          <span className="font-bold text-slate-900">{gr.suppliers?.name || 'مورد'}</span>
-                          <p className="text-[11px] text-slate-500" dir="ltr">
+                          <span className="font-bold text-slate-900 dark:text-slate-100">{gr.suppliers?.name || 'مورد'}</span>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400" dir="ltr">
                             أمر شراء: {gr.purchases?.purchase_number || '-'}
                           </p>
                         </div>
@@ -475,8 +475,8 @@ export default function Movements() {
                         <div className="space-y-1">
                           {gr.goods_receipt_items?.map((item) => (
                             <div key={item.id} className="text-xs">
-                              <span className="font-medium text-slate-800">{item.materials?.name}:</span>{' '}
-                              <span className="font-bold text-emerald-700">+{item.received_quantity} {item.materials?.unit}</span>
+                              <span className="font-medium text-slate-800 dark:text-slate-200">{item.materials?.name}:</span>{' '}
+                              <span className="font-bold text-emerald-700 dark:text-emerald-400">+{item.received_quantity} {item.materials?.unit}</span>
                             </div>
                           ))}
                         </div>
@@ -486,7 +486,7 @@ export default function Movements() {
                         <StatusBadge variant="full" label="مستلم وموثق" />
                       </td>
 
-                      <td className="px-5 py-4 text-left text-slate-500">
+                      <td className="px-5 py-4 text-left text-slate-500 dark:text-slate-400">
                         {gr.notes || '-'}
                       </td>
                     </tr>

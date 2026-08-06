@@ -1,11 +1,19 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 :root {
   font-family: "Cairo", "Segoe UI", sans-serif;
   color: #172033;
   background: #f5f7fb;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+html.dark {
+  color-scheme: dark;
+  background: #0b0f19;
+  color: #f1f5f9;
 }
 
 * {
@@ -17,6 +25,10 @@ html {
   background: #f5f7fb;
 }
 
+html.dark {
+  background: #0b0f19;
+}
+
 body {
   min-width: 320px;
   min-height: 100vh;
@@ -26,6 +38,13 @@ body {
     #f5f7fb;
   color: #172033;
   -webkit-font-smoothing: antialiased;
+}
+
+html.dark body {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(14, 116, 144, 0.12), transparent 26rem),
+    #0b0f19;
+  color: #f1f5f9;
 }
 
 button,
@@ -56,17 +75,36 @@ a {
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
+html.dark .enterprise-field {
+  border-color: #1e293b;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
 .enterprise-field::placeholder {
   color: #9aa6b8;
+}
+
+html.dark .enterprise-field::placeholder {
+  color: #64748b;
 }
 
 .enterprise-field:hover {
   border-color: #bcc8d8;
 }
 
+html.dark .enterprise-field:hover {
+  border-color: #334155;
+}
+
 .enterprise-field:focus {
   border-color: #0f4c81;
   box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.1);
+}
+
+html.dark .enterprise-field:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15);
 }
 
 .surface-card {
@@ -76,18 +114,64 @@ a {
   box-shadow: 0 18px 50px rgba(23, 32, 51, 0.07);
 }
 
+html.dark .surface-card {
+  border-color: rgba(30, 41, 59, 0.9);
+  background: rgba(15, 23, 42, 0.96);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+@page {
+  size: A4 portrait;
+  margin: 8mm;
+}
+
 @media print {
   body {
     background-color: white !important;
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
+  /* Hide app navigation, header, sidebar, buttons, backdrops, non-printable UI */
   aside,
   nav,
-  header {
+  header,
+  footer,
+  .print\:hidden,
+  button,
+  .fixed.inset-0.bg-slate-900\/60,
+  .fixed.inset-0.bg-black\/60,
+  .no-print {
     display: none !important;
+  }
+
+  /* Force printable container to be relative/block at top */
+  .printable-document,
+  .printable-area,
+  #printable-document {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    color: black !important;
   }
 
   main {
     padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .print-page-break {
+    page-break-before: always;
   }
 }
+
+

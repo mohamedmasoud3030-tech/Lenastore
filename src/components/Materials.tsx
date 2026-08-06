@@ -43,6 +43,7 @@ export default function Materials() {
   const [showAddEditModal, setShowAddEditModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<MaterialStock | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   const [form, setForm] = useState({
     name: '',
@@ -270,7 +271,7 @@ export default function Materials() {
       </div>
 
       {/* Search & Filter Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -278,16 +279,16 @@ export default function Materials() {
             placeholder="ابحث عن مادة بالاسم أو التصنيف..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-3 pr-9 py-2 text-xs border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+            className="w-full pl-3 pr-9 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
           />
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs">
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
             <button
               onClick={() => setStatusFilter('ALL')}
               className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-                statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                statusFilter === 'ALL' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               الكل ({totalMaterials})
@@ -295,7 +296,7 @@ export default function Materials() {
             <button
               onClick={() => setStatusFilter('LOW')}
               className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-                statusFilter === 'LOW' ? 'bg-amber-100 text-amber-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                statusFilter === 'LOW' ? 'bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               منخفض ({lowStockCount})
@@ -303,10 +304,33 @@ export default function Materials() {
             <button
               onClick={() => setStatusFilter('OUT')}
               className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-                statusFilter === 'OUT' ? 'bg-rose-100 text-rose-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                statusFilter === 'OUT' ? 'bg-rose-100 dark:bg-rose-950 text-rose-900 dark:text-rose-300 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               نافد ({outOfStockCount})
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'grid'
+                  ? 'bg-white dark:bg-slate-900 text-sky-900 dark:text-sky-400 shadow-2xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              شبكة (2×2)
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'table'
+                  ? 'bg-white dark:bg-slate-900 text-sky-900 dark:text-sky-400 shadow-2xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              جدول
             </button>
           </div>
 
@@ -314,7 +338,7 @@ export default function Materials() {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+              className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
             >
               <option value="ALL">جميع التصنيفات</option>
               {categories.map((cat) => (
@@ -328,7 +352,7 @@ export default function Materials() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+            className="px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
           >
             <option value="name">ترتيب بالاسم</option>
             <option value="stock">ترتيب بالرصيد المتاح</option>
@@ -351,11 +375,91 @@ export default function Materials() {
             </button>
           }
         />
+      ) : viewMode === 'grid' ? (
+        /* Unified 2*2 Responsive Grid Layout */
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4">
+          {filteredMaterials.map((item) => {
+            const stock = Number(item.current_stock);
+            const min = Number(item.min_stock);
+            const isLow = stock <= min && stock > 0;
+            const isOut = stock <= 0;
+            const badgeVariant = isOut ? 'out_of_stock' : isLow ? 'low' : 'available';
+
+            return (
+              <div
+                key={item.material_id}
+                onClick={() => {
+                  setSelectedMaterial(item);
+                  setIsDrawerOpen(true);
+                }}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs hover:border-sky-500 dark:hover:border-sky-500 transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-slate-100 dark:bg-slate-800 group-hover:bg-sky-100 dark:group-hover:bg-sky-950 text-slate-600 dark:text-slate-300 group-hover:text-sky-600 dark:group-hover:text-sky-400 rounded-xl transition-colors shrink-0">
+                        <Package2 className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors truncate">
+                          {item.name}
+                        </h3>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                          {item.category || 'عام'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => handleOpenEditModal(item, e)}
+                      className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg shrink-0"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* High Contrast Stock Box */}
+                <div className="bg-slate-100/90 dark:bg-slate-800/90 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">الرصيد المتاح:</span>
+                    <span
+                      className={`text-base sm:text-lg font-black tracking-tight ${
+                        isOut
+                          ? 'text-rose-600 dark:text-rose-400'
+                          : isLow
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-slate-900 dark:text-slate-50'
+                      }`}
+                    >
+                      {stock} <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.unit}</span>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-[11px]">
+                    <div className="flex justify-between items-center text-emerald-800 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-1 rounded-lg">
+                      <span>وارد:</span>
+                      <span>+{item.total_in}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-amber-800 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-1 rounded-lg">
+                      <span>صرف:</span>
+                      <span>-{item.total_out}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-slate-400 dark:text-slate-500 text-[11px]">حد الطلب: <strong className="text-slate-700 dark:text-slate-300">{min}</strong></span>
+                  <StatusBadge variant={badgeVariant} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
             <table className="w-full text-right text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+              <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold">
                 <tr>
                   <th className="px-5 py-3.5">اسم المادة والتصنيف</th>
                   <th className="px-4 py-3.5 text-center">الوحدة</th>
@@ -367,7 +471,7 @@ export default function Materials() {
                   <th className="px-5 py-3.5 text-left">إجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-800">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
                 {filteredMaterials.map((item) => {
                   const stock = Number(item.current_stock);
                   const min = Number(item.min_stock);
@@ -382,15 +486,15 @@ export default function Materials() {
                         setSelectedMaterial(item);
                         setIsDrawerOpen(true);
                       }}
-                      className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/80 cursor-pointer transition-colors group"
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-slate-100 group-hover:bg-sky-100 group-hover:text-sky-700 text-slate-500 rounded-xl transition-colors">
+                          <div className="p-2 bg-slate-100 dark:bg-slate-800 group-hover:bg-sky-100 dark:group-hover:bg-sky-950 text-slate-500 rounded-xl transition-colors">
                             <Package2 className="w-5 h-5" />
                           </div>
                           <div>
-                            <span className="font-bold text-slate-900 group-hover:text-sky-600 transition-colors">
+                            <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-sky-600 transition-colors">
                               {item.name}
                             </span>
                             <p className="text-[11px] text-slate-400 mt-0.5">
@@ -400,26 +504,26 @@ export default function Materials() {
                         </div>
                       </td>
 
-                      <td className="px-4 py-4 text-center text-slate-600 font-medium">
+                      <td className="px-4 py-4 text-center text-slate-600 dark:text-slate-400 font-medium">
                         {item.unit}
                       </td>
 
-                      <td className="px-4 py-4 text-center font-semibold text-emerald-700">
+                      <td className="px-4 py-4 text-center font-semibold text-emerald-700 dark:text-emerald-400">
                         +{item.total_in}
                       </td>
 
-                      <td className="px-4 py-4 text-center font-semibold text-amber-700">
+                      <td className="px-4 py-4 text-center font-semibold text-amber-700 dark:text-amber-400">
                         -{item.total_out}
                       </td>
 
                       <td className="px-4 py-4 text-center">
                         <span
-                          className={`text-sm font-bold ${
+                          className={`text-sm font-black ${
                             isOut
-                              ? 'text-rose-600'
+                              ? 'text-rose-600 dark:text-rose-400'
                               : isLow
-                              ? 'text-amber-600'
-                              : 'text-slate-900'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-slate-900 dark:text-slate-100'
                           }`}
                         >
                           {stock}
@@ -438,7 +542,7 @@ export default function Materials() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={(e) => handleOpenEditModal(item, e)}
-                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                             title="تعديل المادة"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -471,7 +575,7 @@ export default function Materials() {
               className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
               onClick={() => setShowAddEditModal(false)}
             />
-            <div className="relative transform overflow-hidden rounded-2xl bg-white text-right shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md border border-slate-200">
+            <div className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-900 text-right shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md border border-slate-200 dark:border-slate-800">
               <form onSubmit={handleSaveMaterial}>
                 <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
                   <h3 className="text-base font-bold">
@@ -488,43 +592,43 @@ export default function Materials() {
 
                 <div className="p-6 space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">اسم المادة *</label>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">اسم المادة *</label>
                     <input
                       type="text"
                       required
                       placeholder="مثال: أسمنت بورتلاندي / حديد 12 مم"
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">التصنيف</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">التصنيف</label>
                       <input
                         type="text"
                         placeholder="مثال: خرسانات / تشطيبات"
                         value={form.category}
                         onChange={(e) => setForm({ ...form, category: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                        className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">وحدة القياس *</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">وحدة القياس *</label>
                       <input
                         type="text"
                         required
                         placeholder="مثال: طُن / كيس / متر مكعب"
                         value={form.unit}
                         onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                        className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">الحد الأدنى للتنبيه *</label>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">الحد الأدنى للتنبيه *</label>
                     <input
                       type="number"
                       step="0.01"
@@ -532,25 +636,25 @@ export default function Materials() {
                       required
                       value={form.min_stock}
                       onChange={(e) => setForm({ ...form, min_stock: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     />
-                    <p className="text-[11px] text-slate-400 mt-1">
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
                       سيتم إظهار تنبيه المادة المنخفضة عندما يقل الرصيد المتاح عن هذا العدد.
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">ملاحظات وصفية</label>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">ملاحظات وصفية</label>
                     <textarea
                       rows={2}
                       value={form.notes}
                       onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     ></textarea>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 px-6 py-4 flex flex-row-reverse gap-3 border-t border-slate-200">
+                <div className="bg-slate-50 dark:bg-slate-800/80 px-6 py-4 flex flex-row-reverse gap-3 border-t border-slate-200 dark:border-slate-800">
                   <button
                     type="submit"
                     disabled={submitting}
@@ -562,7 +666,7 @@ export default function Materials() {
                     type="button"
                     disabled={submitting}
                     onClick={() => setShowAddEditModal(false)}
-                    className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors shadow-xs"
+                    className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-xs"
                   >
                     إلغاء
                   </button>

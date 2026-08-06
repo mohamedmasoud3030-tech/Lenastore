@@ -5,11 +5,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Purchase, PurchaseItem, Payment, GoodsReceipt } from '../types';
 import { parseSupabaseError } from '../lib/supabaseErrors';
 import { useToast } from './common/ToastProvider';
+import { PageHeader } from './common/PageHeader';
 import { StatusBadge } from './common/StatusBadge';
 import { LoadingSkeleton } from './common/LoadingSkeleton';
 import { ErrorState } from './common/ErrorState';
 import { formatCurrency, formatDate } from '../lib/formatters';
 import Attachments from './Attachments';
+import PrintDocumentModal, { DocumentItem } from './common/PrintDocumentModal';
 import {
   ArrowRight,
   PackageCheck,
@@ -22,6 +24,8 @@ import {
   X,
   History,
   AlertTriangle,
+  Printer,
+  ShoppingCart,
 } from 'lucide-react';
 
 export default function PurchaseDetails() {
@@ -39,6 +43,7 @@ export default function PurchaseDetails() {
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
@@ -233,55 +238,71 @@ export default function PurchaseDetails() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-          >
-            <ArrowRight className="w-5 h-5" />
-          </button>
+    <div className="space-y-6 max-w-5xl mx-auto print:space-y-4 print:p-0">
+      {/* Printable Header Branding */}
+      <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-6">
+        <div className="flex justify-between items-start">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900" dir="ltr">
-                {purchase.purchase_number}
-              </h1>
-              <StatusBadge variant={purchase.receipt_status} />
-              <StatusBadge variant={isFullyPaid ? 'paid' : totalPaid > 0 ? 'partial' : 'unpaid'} />
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              المورد: <span className="font-bold text-slate-800">{purchase.suppliers?.name}</span> • تاريخ أمر الشراء: {formatDate(purchase.date)}
-            </p>
+            <h1 className="text-2xl font-black text-slate-900">{project?.name || 'مشروع إنشائي'}</h1>
+            <p className="text-xs text-slate-500 mt-1">نظام ليناستور لإدارة التوريدات والمخزون الهندسي</p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {purchase.receipt_status !== 'FULL' && (
-            <button
-              onClick={() => setShowReceiptModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
-            >
-              <PackageCheck className="w-4 h-4" /> تسجيل استلام مواد
-            </button>
-          )}
-
-          {!isFullyPaid && (
-            <button
-              onClick={() => setShowPaymentModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-xs"
-            >
-              <Banknote className="w-4 h-4" /> تسجيل دفعة جديدة
-            </button>
-          )}
+          <div className="text-left text-xs text-slate-600">
+            <h2 className="text-base font-bold text-slate-900">سند أمر شراء توريد</h2>
+            <p className="font-mono text-sky-800 font-bold mt-0.5" dir="ltr">{purchase.purchase_number}</p>
+            <p className="mt-1">تاريخ الأوردر: {formatDate(purchase.date)}</p>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Standardized PageHeader */}
+      <PageHeader
+        title={purchase.purchase_number}
+        description={`المورد: ${purchase.suppliers?.name || 'غير محدد'} • تاريخ أمر الشراء: ${formatDate(purchase.date)}`}
+        onBack={() => navigate(-1)}
+        icon={ShoppingCart}
+        badge={
+          <div className="flex items-center gap-1.5">
+            <StatusBadge variant={purchase.receipt_status} />
+            <StatusBadge variant={isFullyPaid ? 'paid' : totalPaid > 0 ? 'partial' : 'unpaid'} />
+          </div>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors shadow-2xs"
+            >
+              <Printer className="w-4 h-4" />
+              طباعة ومعاينة A4
+            </button>
+
+            {purchase.receipt_status !== 'FULL' && (
+              <button
+                onClick={() => setShowReceiptModal(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-2xs"
+              >
+                <PackageCheck className="w-4 h-4" />
+                تسجيل استلام مواد
+              </button>
+            )}
+
+            {!isFullyPaid && (
+              <button
+                onClick={() => setShowPaymentModal(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors shadow-2xs"
+              >
+                <Banknote className="w-4 h-4" />
+                تسجيل دفعة جديدة
+              </button>
+            )}
+          </div>
+        }
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block print:space-y-4">
         {/* Left Column (Items & Financial breakdown) */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+        <div className="lg:col-span-2 space-y-6 print:space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:shadow-none">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900">بنود أوردر الشراء ونسب الاستلام</h3>
               <span className="text-xs text-slate-500">{items.length} بنود</span>
@@ -345,7 +366,7 @@ export default function PurchaseDetails() {
 
           {/* Goods Receipt History Timeline */}
           {goodsReceipts.length > 0 && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4 print:shadow-none print:p-4">
               <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
                 <History className="w-4 h-4 text-emerald-600" /> سجل سندات الاستلام المقترنة
               </h3>
@@ -372,14 +393,16 @@ export default function PurchaseDetails() {
             </div>
           )}
 
-          {/* Attachments Section */}
-          <Attachments entityType="PURCHASE" entityId={purchase.id} />
+          {/* Attachments Section (Hidden on Print) */}
+          <div className="print:hidden">
+            <Attachments entityType="PURCHASE" entityId={purchase.id} />
+          </div>
         </div>
 
         {/* Right Column (Supplier Details & Payments Ledger) */}
-        <div className="space-y-6">
+        <div className="space-y-6 print:space-y-4 print:mt-4">
           {/* Supplier Info */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-3 print:shadow-none print:p-4">
             <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-slate-500" /> بيانات المورد
             </h3>
@@ -395,13 +418,13 @@ export default function PurchaseDetails() {
           </div>
 
           {/* Financial Balances & Payments */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:shadow-none">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900">سجل المدفوعات</h3>
               {!isFullyPaid && (
                 <button
                   onClick={() => setShowPaymentModal(true)}
-                  className="text-xs font-bold text-sky-600 hover:text-sky-700"
+                  className="text-xs font-bold text-sky-600 hover:text-sky-700 print:hidden"
                 >
                   + إضافة دفعة
                 </button>
@@ -415,7 +438,7 @@ export default function PurchaseDetails() {
               </span>
             </div>
 
-            <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+            <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto print:max-h-none">
               {payments.length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-400">لا توجد دفعات مسجلة لهذا الأمر</div>
               ) : (
@@ -445,6 +468,13 @@ export default function PurchaseDetails() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Printable Signatures Block */}
+      <div className="hidden print:grid grid-cols-3 gap-6 pt-12 text-center text-xs text-slate-700">
+        <div className="border-t border-slate-300 pt-2 font-bold">توقيع المستلم / المورد</div>
+        <div className="border-t border-slate-300 pt-2 font-bold">الحسابات والمراجعة</div>
+        <div className="border-t border-slate-300 pt-2 font-bold">اعتماد مدير المشروع</div>
       </div>
 
       {/* Modal for Receiving Items */}
@@ -625,6 +655,40 @@ export default function PurchaseDetails() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Printable A4 Modal */}
+      {purchase && (
+        <PrintDocumentModal
+          isOpen={showPrintModal}
+          onClose={() => setShowPrintModal(false)}
+          documentType="PURCHASE"
+          title="سند أمر توريد وشراء رسمي"
+          docNumber={purchase.purchase_number}
+          date={formatDate(purchase.date)}
+          projectName={project?.name || 'مشروع إنشائي'}
+          projectLocation={project?.location}
+          partyName={purchase.suppliers?.name}
+          partyTitle="المورد المعتمد"
+          items={items.map((i) => {
+            const mat = Array.isArray(i.materials) ? i.materials[0] : i.materials;
+            return {
+              id: i.id,
+              material_name: mat?.name || 'مادة توريد',
+              unit: mat?.unit || '',
+              quantity: Number(i.quantity) || 0,
+              unit_price: Number(i.unit_price) || 0,
+              total_price: Number(i.total_price) || 0,
+            };
+          })}
+          totals={{
+            subtotal: Number(purchase.total || 0),
+            paid: totalPaid,
+            remaining: remaining,
+            currency: currency,
+          }}
+          notes={purchase.notes || undefined}
+        />
       )}
     </div>
   );
