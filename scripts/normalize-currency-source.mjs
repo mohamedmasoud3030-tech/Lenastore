@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
+// One-time source normalization for the production-readiness branch.
 const files = [
   'src/components/Suppliers.tsx',
   'src/components/Purchases.tsx',
