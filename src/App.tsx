@@ -20,6 +20,7 @@ import PurchaseRequests from './components/PurchaseRequests';
 import CreatePurchaseRequest from './components/CreatePurchaseRequest';
 import RequestDetails from './components/RequestDetails';
 import Reports from './components/Reports';
+import AuditAndCorrections from './components/AuditAndCorrections';
 
 function LoadingScreen() {
   return <div className="p-8 text-center">جاري التحميل...</div>;
@@ -85,6 +86,7 @@ function AppContent() {
         <Route path="purchases/:id" element={<PurchaseDetails />} />
         <Route path="suppliers" element={<Suppliers />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="audit" element={<AuditAndCorrections />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
